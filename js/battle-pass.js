@@ -332,17 +332,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (toggleBtn && modal) {
     // Show modal when toggle button is clicked (allow either server-auth or local accounts)
-    toggleBtn.addEventListener('click', () => {
+    toggleBtn.addEventListener('click', (e) => {
       try {
         const hasServerAuth = !!(window.GameAPI && GameAPI.isAuthenticated && GameAPI.isAuthenticated());
         const hasLocalLogin = (typeof getCurrentUser === 'function' && getCurrentUser());
         if (!hasServerAuth && !hasLocalLogin) {
+          e.preventDefault();
+          e.stopPropagation();
           alert('Please login to access the Battle Pass');
-          return;
+          modal.style.display = 'none';
+          return false;
         }
       } catch (e) {
+        e.preventDefault();
+        e.stopPropagation();
         alert('Please login to access the Battle Pass');
-        return;
+        modal.style.display = 'none';
+        return false;
       }
       modal.style.display = 'flex';
       try { BattlePass.updateBattlePassUI(); } catch (e) {}

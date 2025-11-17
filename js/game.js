@@ -710,8 +710,13 @@ function playImposterVictoryAnimation() {
 if (els.victoryNextRoundBtn) {
   els.victoryNextRoundBtn.addEventListener('click', () => {
     clearVictoryAnimation();
-    // Start next round while keeping scores and players
-    newGame(true);
+    // If offline mode, auto-refresh page to setup screen
+    if (getMode() === 'offline') {
+      window.location.href = 'play.html';
+    } else {
+      // Online mode: start next round while keeping scores and players
+      newGame(true);
+    }
   });
 }
 

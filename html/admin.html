@@ -33,7 +33,7 @@
       <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
       
       <!-- Battle Pass Modal -->
-      <div id="battlePassModal" class="bp-modal">
+      <div id="battlePassModal" class="bp-modal" style="display:none;">
         <div class="bp-modal-content">
           <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
           <div class="bp-header">
@@ -221,6 +221,25 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Check if user is already logged in as admin; if not, show auth form
+      const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+      if (!currentUser) {
+        document.getElementById('adminAuthForms').hidden = false;
+        document.getElementById('adminPanel').hidden = true;
+      } else {
+        const acc = typeof getAccount === 'function' ? getAccount(currentUser) : null;
+        if (acc && acc.isAdmin) {
+          document.getElementById('adminAuthForms').hidden = true;
+          document.getElementById('adminPanel').hidden = false;
+          document.getElementById('adminUsername2').textContent = currentUser;
+          refreshAccountsList();
+        } else {
+          // Non-admin or no account found — redirect to home
+          alert('Admin access required. Redirecting to home.');
+          window.location.href = 'index.html';
+        }
+      }
+
       const adminLoginBtn = document.getElementById('adminLoginBtn');
       const adminLogoutBtn = document.getElementById('adminLogoutBtn');
       

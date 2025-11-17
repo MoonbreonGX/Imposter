@@ -24,7 +24,7 @@
     .home-title { font-size:4rem; color:#4ac9ff; text-shadow:0 0 20px #00b4ff; margin:0 0 12px; }
     .home-sub { opacity:0.9; margin-bottom:20px; }
     .home-buttons { display:flex; gap:12px; justify-content:center; margin-top:18px; }
-    .home-buttons a { padding:12px 22px; border-radius:8px; text-decoration:none; font-weight:700; }
+    .home-buttons a, .home-buttons button { padding:12px 22px; border-radius:8px; text-decoration:none; font-weight:700; flex:1; min-width:140px; text-align:center; border:none; cursor:pointer; }
     .play-btn { background:linear-gradient(90deg,#00c853,#00ff88); color:#000; }
     .account-btn { background:linear-gradient(90deg,#0077ff,#00b4ff); color:#fff; }
     /* simple animated techy background */
@@ -62,7 +62,7 @@
       <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
       
       <!-- Battle Pass Modal -->
-      <div id="battlePassModal" class="bp-modal">
+      <div id="battlePassModal" class="bp-modal" style="display:none;">
         <div class="bp-modal-content">
           <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
           <div class="bp-header">
@@ -94,7 +94,7 @@
         <div class="home-buttons">
           <a class="play-btn" href="play.html">▶️ Play Now</a>
           <a class="account-btn" href="account.html">👤 My Account</a>
-          <button id="installBtn" class="install-btn" style="padding:12px 22px; border-radius:8px; border:2px solid #00b4ff; background:transparent; color:#4ac9ff; font-weight:700; cursor:pointer; display:none;">⬇️ Download App</button>
+          <button id="installBtn" style="padding:12px 22px; border-radius:8px; border:2px solid #00b4ff; background:transparent; color:#4ac9ff; font-weight:700; cursor:pointer; display:none; flex:1;">⬇️ Download App</button>
         </div>
         <div style="margin-top:16px; font-size:0.85em; color:#9fdcff;">
           <div>Quick Stats</div>
@@ -231,16 +231,31 @@
       }
       if (sidebarToggle && sidebar) sidebarToggle.addEventListener('click', () => { sidebar.classList.toggle('collapsed'); try{ localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {} });
 
-      // Load and display stats
+      // Load and display stats (both local and server)
       try {
+        // Local stats
         const accounts = JSON.parse(localStorage.getItem('accounts') || '{}');
         const players = Object.keys(accounts).length;
         const topXp = Math.max(0, ...Object.values(accounts).map(a => a.xp || 0));
         const topName = Object.entries(accounts).find(([k, v]) => v.xp === topXp)?.[0] || 'None yet';
         const topLvl = Math.floor(topXp / 100);
         
-        document.getElementById('statPlayers').textContent = players;
-        document.getElementById('statGames').textContent = Math.max(0, players * 3);
+        // Try to load server stats if API available
+        if (window.GameAPI && window.GameAPI.request) {
+          try {
+            const serverStats = await GameAPI.request('/api/stats');
+            document.getElementById('statPlayers').textContent = serverStats.activePlayers || players;
+            document.getElementById('statGames').textContent = serverStats.totalGames || (players * 3);
+          } catch (e) {
+            // Fallback to local stats if server unavailable
+            document.getElementById('statPlayers').textContent = players;
+            document.getElementById('statGames').textContent = players * 3;
+          }
+        } else {
+          document.getElementById('statPlayers').textContent = players;
+          document.getElementById('statGames').textContent = players * 3;
+        }
+        
         document.getElementById('topPlayer').textContent = `${topName} (Lv ${topLvl})`;
       } catch (e) {}
 

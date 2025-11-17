@@ -432,13 +432,58 @@ function account_refreshAllDisplays() {
     else {
       const a = getAccount(u2) || { xp:0, coins:0 };
       const lvl2 = account_getLevelFromXP(a.xp || 0);
-      top.innerHTML = `<div style="display:flex;align-items:center;gap:10px;">
-        <div style="text-align:right; font-size:0.9em; color:#9fdcff;">
-          <div style="font-weight:700; color:#4ac9ff;">${u2}</div>
-          <div style="font-size:0.85em;">Lv ${lvl2.level}</div>
-          <div style="font-size:0.85em; color:#ffd700;">XP: <strong>${a.xp||0}</strong></div>
-        </div>
-      </div>`;
+      
+      // Fetch gems from server if authenticated
+      let gemsDisplay = '—';
+      if (window.GameAPI && window.GameAPI.isAuthenticated && window.GameAPI.playerId) {
+        try {
+          fetch(`/api/player/${GameAPI.playerId}`, {
+            headers: { 'Authorization': `Bearer ${GameAPI.token}` }
+          }).then(r => r.json()).then(data => {
+            const gemsCount = data.gems || 0;
+            const topEl = document.getElementById('topRightInfo');
+            if (topEl) {
+              topEl.innerHTML = `<div style="background:linear-gradient(135deg, #0077ff 0%, #00b4ff 100%); border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,180,255,0.25); border:1px solid rgba(0,180,255,0.5);">
+                <div style="font-weight:700; color:#fff; font-size:0.95em; margin-bottom:8px;">${u2}</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85em;">
+                  <div style="color:#fff;"><strong>Lv ${lvl2.level}</strong> • XP: ${a.xp||0}</div>
+                  <div style="color:#fff;"><strong>💰 ${a.coins||0}</strong> | <strong>💎 ${gemsCount}</strong></div>
+                </div>
+              </div>`;
+            }
+          }).catch(e => {
+            // Fallback to local display
+            const topEl = document.getElementById('topRightInfo');
+            if (topEl) {
+              topEl.innerHTML = `<div style="background:linear-gradient(135deg, #0077ff 0%, #00b4ff 100%); border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,180,255,0.25); border:1px solid rgba(0,180,255,0.5);">
+                <div style="font-weight:700; color:#fff; font-size:0.95em; margin-bottom:8px;">${u2}</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85em;">
+                  <div style="color:#fff;"><strong>Lv ${lvl2.level}</strong> • XP: ${a.xp||0}</div>
+                  <div style="color:#fff;"><strong>💰 ${a.coins||0}</strong> | <strong>💎 —</strong></div>
+                </div>
+              </div>`;
+            }
+          });
+        } catch (e) {
+          // Offline mode: just show coins
+          top.innerHTML = `<div style="background:linear-gradient(135deg, #0077ff 0%, #00b4ff 100%); border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,180,255,0.25); border:1px solid rgba(0,180,255,0.5);">
+            <div style="font-weight:700; color:#fff; font-size:0.95em; margin-bottom:8px;">${u2}</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85em;">
+              <div style="color:#fff;"><strong>Lv ${lvl2.level}</strong> • XP: ${a.xp||0}</div>
+              <div style="color:#fff;"><strong>💰 ${a.coins||0}</strong> | <strong>💎 —</strong></div>
+            </div>
+          </div>`;
+        }
+      } else {
+        // Offline/not authenticated: show local account info
+        top.innerHTML = `<div style="background:linear-gradient(135deg, #0077ff 0%, #00b4ff 100%); border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,180,255,0.25); border:1px solid rgba(0,180,255,0.5);">
+          <div style="font-weight:700; color:#fff; font-size:0.95em; margin-bottom:8px;">${u2}</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85em;">
+            <div style="color:#fff;"><strong>Lv ${lvl2.level}</strong> • XP: ${a.xp||0}</div>
+            <div style="color:#fff;"><strong>💰 ${a.coins||0}</strong> | <strong>💎 —</strong></div>
+          </div>
+        </div>`;
+      }
     }
     // Ensure admin sidebar visibility for other pages
     try {

@@ -231,6 +231,29 @@ const initializeDatabase = () => {
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (playerId) REFERENCES players(id)
     `);
+
+    // Cosmetics system tables
+    db.run(`CREATE TABLE IF NOT EXISTS cosmetic_items (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      rarity TEXT DEFAULT 'common',
+      price INTEGER DEFAULT 0,
+      assetUrl TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS player_inventory (
+      id TEXT PRIMARY KEY,
+      playerId TEXT NOT NULL,
+      itemId TEXT NOT NULL,
+      owned BOOLEAN DEFAULT 0,
+      equipped BOOLEAN DEFAULT 0,
+      acquiredAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (playerId) REFERENCES players(id),
+      FOREIGN KEY (itemId) REFERENCES cosmetic_items(id)
+    )`);
   });
 };
 
@@ -546,6 +569,120 @@ app.get('/api/rooms/:roomId/history', (req, res) => {
       res.json(rounds);
     }
   );
+});
+
+// Get global stats
+app.get('/api/stats', (req, res) => {
+  // Count unique players who have played at least 1 game
+  db.get('SELECT COUNT(DISTINCT playerId) as activePlayers FROM room_players', (err, result1) => {
+    if (err) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+    // Count total games (rounds completed)
+    db.get('SELECT COUNT(*) as totalGames FROM game_rounds', (err, result2) => {
+      if (err) {
+        return res.status(500).json({ error: 'Server error' });
+      }
+      res.json({
+        activePlayers: result1?.activePlayers || 0,
+        totalGames: result2?.totalGames || 0
+      });
+    });
+  });
+});
+
+// Shop / Cosmetics endpoints
+app.get('/api/shop/items', (req, res) => {
+  db.all('SELECT * FROM cosmetic_items ORDER BY type, rarity DESC', (err, items) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    res.json(items || []);
+  });
+});
+
+app.get('/api/shop/inventory', verifyToken, (req, res) => {
+  db.all('SELECT ci.*, pi.owned, pi.equipped FROM cosmetic_items ci LEFT JOIN player_inventory pi ON ci.id = pi.itemId AND pi.playerId = ? ORDER BY ci.type', [req.playerId], (err, items) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    res.json(items || []);
+  });
+});
+
+app.post('/api/shop/buy/:itemId', verifyToken, (req, res) => {
+  const { itemId } = req.params;
+  const playerId = req.playerId;
+
+  // Check if player already owns this item
+  db.get('SELECT * FROM player_inventory WHERE playerId = ? AND itemId = ?', [playerId, itemId], (err, existing) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    if (existing && existing.owned) {
+      return res.status(400).json({ error: 'Already owned' });
+    }
+
+    // Get item and player gems
+    db.get('SELECT price FROM cosmetic_items WHERE id = ?', [itemId], (err, item) => {
+      if (err || !item) return res.status(404).json({ error: 'Item not found' });
+
+      db.get('SELECT gems FROM player_gems WHERE playerId = ?', [playerId], (err, gemsRow) => {
+        if (err) return res.status(500).json({ error: 'Server error' });
+        const currentGems = gemsRow?.gems || 0;
+        if (currentGems < item.price) {
+          return res.status(400).json({ error: 'Not enough gems' });
+        }
+
+        // Deduct gems and add to inventory
+        const newGems = currentGems - item.price;
+        db.run('UPDATE player_gems SET gems = ? WHERE playerId = ?', [newGems, playerId], (err) => {
+          if (err) return res.status(500).json({ error: 'Server error' });
+
+          if (existing) {
+            // Mark as owned
+            db.run('UPDATE player_inventory SET owned = 1 WHERE id = ?', [existing.id], (err) => {
+              if (err) return res.status(500).json({ error: 'Server error' });
+              res.json({ success: true, gemsRemaining: newGems });
+            });
+          } else {
+            // Add new inventory entry
+            const invId = uuidv4();
+            db.run('INSERT INTO player_inventory (id, playerId, itemId, owned) VALUES (?, ?, ?, 1)', [invId, playerId, itemId], (err) => {
+              if (err) return res.status(500).json({ error: 'Server error' });
+              res.json({ success: true, gemsRemaining: newGems });
+            });
+          }
+        });
+      });
+    });
+  });
+});
+
+app.post('/api/shop/equip/:itemId', verifyToken, (req, res) => {
+  const { itemId } = req.params;
+  const playerId = req.playerId;
+
+  // Unequip all items of the same type
+  db.get('SELECT type FROM cosmetic_items WHERE id = ?', [itemId], (err, item) => {
+    if (err || !item) return res.status(404).json({ error: 'Item not found' });
+
+    db.run('UPDATE player_inventory SET equipped = 0 WHERE playerId = ? AND itemId IN (SELECT id FROM cosmetic_items WHERE type = ?)', [playerId, item.type], (err) => {
+      if (err) return res.status(500).json({ error: 'Server error' });
+
+      // Equip the selected item
+      db.run('UPDATE player_inventory SET equipped = 1 WHERE playerId = ? AND itemId = ?', [playerId, itemId], (err) => {
+        if (err) return res.status(500).json({ error: 'Server error' });
+        res.json({ success: true });
+      });
+    });
+  });
+});
+
+// Get player info (gems, stats)
+app.get('/api/player/:playerId', verifyToken, (req, res) => {
+  const playerId = req.params.playerId;
+  if (playerId !== req.playerId) return res.status(403).json({ error: 'Unauthorized' });
+
+  db.get('SELECT gems FROM player_gems WHERE playerId = ?', [playerId], (err, gemsRow) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    const gems = gemsRow?.gems || 0;
+    res.json({ playerId, gems });
+  });
 });
 
 // Battle Pass endpoints

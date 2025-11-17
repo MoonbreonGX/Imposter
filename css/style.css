@@ -1601,3 +1601,7 @@ button[disabled] {
 
 /* ensure top-right info looks consistent (kept minimal to avoid duplication) */
 .top-right-info { font-size: 0.95rem; }
+
+/* Full-screen layout for specific pages */
+.fullscreen-page { margin-left: 0 !important; padding: 0 !important; width: 100%; }
+.fullscreen-page .content { margin-left: 0; padding: 0; width: 100%; }

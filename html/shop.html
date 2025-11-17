@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="../css/style.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div class="app-shell fullscreen-page">
       <aside class="sidebar" aria-label="Main navigation">
         <div class="sidebar-top">
           <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
@@ -28,7 +28,7 @@
         <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
         
         <!-- Battle Pass Modal -->
-        <div id="battlePassModal" class="bp-modal">
+        <div id="battlePassModal" class="bp-modal" style="display:none;">
           <div class="bp-modal-content">
             <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
             <div class="bp-header">
@@ -49,17 +49,21 @@
         <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
         
       <section class="shop">
-        <h1>Shop</h1>
-        <p>Buy skins and cosmetics with coins. Earn coins by playing games (10 coins per 50 XP).</p>
-        <div id="shopLoginPrompt" style="text-align:center; padding:20px; color:#9fdcff;">
-          <p style="font-size:1.1em;">🔐 Log in to see the shop</p>
+        <h1>🛒 Cosmetics Shop</h1>
+        <div class="shop-header">
+          <p>Customize your profile with exclusive cosmetics!</p>
+          <div id="gemsDisplay" style="display:none; font-size:1.2em; font-weight:bold;">💎 <span id="gemsCount">0</span> Gems</div>
+          <div id="shopLoginPrompt" style="text-align:center; padding:20px; color:#9fdcff; display:none;">
+            <p style="font-size:1.1em;">🔐 Log in to the shop</p>
+          </div>
         </div>
-        <div id="shopGrid" class="shop-grid" style="display:none;"></div>
+        <div id="shopGrid" class="shop-grid"></div>
       </section>
     </main>
   </div>
   <script src="../js/crypto-utils.js"></script>
   <script src="../js/account.js"></script>
+  <script src="../js/game.js"></script>
   <script>
     // Auto-clear old caches on every load
     if ('caches' in window) {
@@ -72,65 +76,208 @@
       });
     }
 
-    const SHOP_ITEMS = [
-      { id: 'skin-red', name: 'Red Theme', cost: 50, desc: 'Bright red card theme' },
-      { id: 'skin-blue', name: 'Blue Theme', cost: 50, desc: 'Cool blue card theme' },
-      { id: 'skin-gold', name: 'Gold Frame', cost: 120, desc: 'Shiny gold frame' },
-      { id: 'skin-rainbow', name: 'Rainbow', cost: 250, desc: 'Animated rainbow effect' }
-    ];
+    // Rarity color mapping
+    const rarityColors = {
+      common: '#999',
+      uncommon: '#4fc3f7',
+      rare: '#1976d2',
+      epic: '#7c4dff',
+      legendary: '#ffc400'
+    };
 
-    function renderShop() {
+    async function loadShop() {
       const grid = document.getElementById('shopGrid');
       const loginPrompt = document.getElementById('shopLoginPrompt');
+      const gemsDisplay = document.getElementById('gemsDisplay');
       const user = getCurrentUser();
       
-      if (!user) {
+      grid.innerHTML = '';
+
+      if (!user && !GameAPI.isAuthenticated) {
         loginPrompt.style.display = 'block';
-        grid.style.display = 'none';
+        gemsDisplay.style.display = 'none';
         return;
       }
-      
+
       loginPrompt.style.display = 'none';
-      grid.style.display = 'grid';
-      grid.innerHTML = '';
       
-      const account = getAccount(user);
-      if (!account) return;
+      try {
+        // Fetch cosmetics from server
+        const itemsRes = await fetch('/api/shop/items');
+        const items = await itemsRes.json();
 
-      SHOP_ITEMS.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'shop-item';
-        card.innerHTML = `<h3>${item.name}</h3><p>${item.desc}</p><div class="cost">${item.cost}🪙</div>`;
+        let playerInventory = [];
+        let playerGems = 0;
 
-        const btn = document.createElement('button');
-        const owned = account.skins && account.skins.includes(item.id);
-        btn.textContent = owned ? 'Owned' : 'Buy';
-        btn.disabled = owned;
-        btn.addEventListener('click', () => buyItem(item.id, item.cost));
-        card.appendChild(btn);
+        if (GameAPI.isAuthenticated) {
+          try {
+            const invRes = await fetch('/api/shop/inventory', {
+              headers: { 'Authorization': `Bearer ${GameAPI.token}` }
+            });
+            playerInventory = await invRes.json() || [];
 
-        grid.appendChild(card);
-      });
+            const playerRes = await fetch(`/api/player/${GameAPI.playerId}`, {
+              headers: { 'Authorization': `Bearer ${GameAPI.token}` }
+            });
+            const playerData = await playerRes.json();
+            playerGems = playerData.gems || 0;
+          } catch (e) {
+            console.error('Failed to fetch inventory:', e);
+          }
+        }
+
+        gemsDisplay.style.display = 'block';
+        document.getElementById('gemsCount').textContent = playerGems;
+
+        if (items.length === 0) {
+          grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#9fdcff;">No cosmetics available yet.</p>';
+          return;
+        }
+
+        // Group by type
+        const byType = {};
+        items.forEach(item => {
+          if (!byType[item.type]) byType[item.type] = [];
+          byType[item.type].push(item);
+        });
+
+        // Render by type
+        Object.entries(byType).forEach(([type, typeItems]) => {
+          const typeLabel = document.createElement('div');
+          typeLabel.style.cssText = 'grid-column:1/-1; font-size:0.9em; color:#00b4ff; text-transform:uppercase; margin-top:10px; margin-bottom:5px;';
+          typeLabel.textContent = `📍 ${type}`;
+          grid.appendChild(typeLabel);
+
+          typeItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'cosmetic-card';
+            card.style.cssText = `
+              background: linear-gradient(135deg, #1a1a2e, #16213e);
+              border: 2px solid ${rarityColors[item.rarity] || '#999'};
+              border-radius: 8px;
+              padding: 12px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            `;
+
+            const invItem = playerInventory.find(pi => pi.id === item.id);
+            const isOwned = invItem?.owned;
+            const isEquipped = invItem?.equipped;
+
+            // Asset preview
+            const preview = document.createElement('div');
+            preview.style.cssText = 'width:100%; height:100px; background:#0f0f1a; border-radius:4px; display:flex; align-items:center; justify-content:center; overflow:hidden;';
+            if (item.assetUrl) {
+              const img = document.createElement('img');
+              img.src = item.assetUrl;
+              img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain;';
+              preview.appendChild(img);
+            } else {
+              preview.textContent = item.type.substring(0, 3).toUpperCase();
+              preview.style.color = '#666';
+            }
+            card.appendChild(preview);
+
+            // Name & Rarity
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+            const name = document.createElement('h4');
+            name.style.cssText = 'margin:0; font-size:0.9em;';
+            name.textContent = item.name;
+            const rarity = document.createElement('span');
+            rarity.style.cssText = `font-size:0.75em; color:${rarityColors[item.rarity]}; text-transform:uppercase; font-weight:bold;`;
+            rarity.textContent = item.rarity;
+            header.appendChild(name);
+            header.appendChild(rarity);
+            card.appendChild(header);
+
+            // Description
+            const desc = document.createElement('p');
+            desc.style.cssText = 'margin:0; font-size:0.8em; color:#9fdcff;';
+            desc.textContent = item.description || 'Unique cosmetic';
+            card.appendChild(desc);
+
+            // Price
+            const price = document.createElement('div');
+            price.style.cssText = 'font-size:0.9em; font-weight:bold; color:#ffc400;';
+            price.textContent = `💎 ${item.price} Gems`;
+            card.appendChild(price);
+
+            // Action Buttons
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = 'display:flex; gap:6px;';
+
+            if (isOwned) {
+              const equipBtn = document.createElement('button');
+              equipBtn.style.cssText = `
+                flex:1; padding:6px; border:none; border-radius:4px;
+                background:${isEquipped ? '#00b4ff' : '#1a3a52'}; color:#fff;
+                cursor:pointer; font-size:0.8em; font-weight:bold;
+              `;
+              equipBtn.textContent = isEquipped ? '✓ Equipped' : 'Equip';
+              equipBtn.addEventListener('click', () => equipCosmetic(item.id, () => loadShop()));
+              buttonContainer.appendChild(equipBtn);
+            } else {
+              const buyBtn = document.createElement('button');
+              buyBtn.style.cssText = `
+                flex:1; padding:6px; border:none; border-radius:4px;
+                background:${playerGems >= item.price ? '#4caf50' : '#555'}; color:#fff;
+                cursor:${playerGems >= item.price ? 'pointer' : 'not-allowed'}; 
+                font-size:0.8em; font-weight:bold;
+              `;
+              buyBtn.textContent = 'Buy';
+              buyBtn.disabled = playerGems < item.price;
+              buyBtn.addEventListener('click', () => buyCosmetic(item.id, item.price, () => loadShop()));
+              buttonContainer.appendChild(buyBtn);
+            }
+
+            card.appendChild(buttonContainer);
+            grid.appendChild(card);
+          });
+        });
+      } catch (e) {
+        console.error('Failed to load shop:', e);
+        grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#ff6b6b;">Failed to load cosmetics</p>';
+      }
     }
 
-    function buyItem(id, cost) {
-      const user = getCurrentUser();
-      if (!user) return alert('Please log in to buy items.');
-      const accounts = _loadAccounts();
-      const acc = accounts[user];
-      if (!acc) return alert('Account not found');
-      if ((acc.coins || 0) < cost) return alert('Not enough coins.');
-      acc.coins = (acc.coins || 0) - cost;
-      acc.skins = acc.skins || [];
-      if (!acc.skins.includes(id)) acc.skins.push(id);
-      _saveAccounts(accounts);
-      account_refreshAllDisplays();
-      renderShop();
-      alert('Purchase successful!');
+    async function buyCosmetic(itemId, price, callback) {
+      if (!GameAPI.isAuthenticated) return alert('Please log in to purchase');
+      
+      try {
+        const res = await fetch(`/api/shop/buy/${itemId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${GameAPI.token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error || 'Purchase failed');
+        alert('✓ Purchase successful!');
+        callback();
+      } catch (e) {
+        alert('Purchase error: ' + e.message);
+      }
+    }
+
+    async function equipCosmetic(itemId, callback) {
+      if (!GameAPI.isAuthenticated) return alert('Please log in');
+      
+      try {
+        const res = await fetch(`/api/shop/equip/${itemId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${GameAPI.token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error || 'Equip failed');
+        alert('✓ Cosmetic equipped!');
+        callback();
+      } catch (e) {
+        alert('Equip error: ' + e.message);
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      renderShop();
+      loadShop();
       // Sidebar toggle
       const btn = document.getElementById('sidebarToggle');
       const sidebar = document.querySelector('.sidebar');
