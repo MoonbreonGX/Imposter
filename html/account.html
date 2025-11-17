@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Imposter — Account</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .account-card { max-width:420px; margin:48px auto; padding:24px; border-radius:12px; background:rgba(6,12,30,0.9); }
+    .account-row { display:flex; gap:8px; margin-top:8px; }
+    .account-row input { flex:1; }
+    .account-info { margin-top:16px; }
+    .small { font-size:0.9em; opacity:0.85; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+        <a href="shop.html"><span class="icon">🛒</span><span class="label">Shop</span></a>
+        <a id="sidebarAdminLink" href="admin.html" style="display:none;"><span class="icon">⚙️</span><span class="label">Admin</span></a>
+      </nav>
+      <div id="playerAccountInfo" class="account-preview"></div>
+    </aside>
+
+    <main class="content">
+      <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
+      
+      <!-- Battle Pass Modal -->
+      <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+      <!-- Battle Pass Toggle Button (Bottom Right) -->
+      <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
+      
+      <!-- Debug Panel -->
+      <div id="debugPanel" style="position:fixed; top:0; right:0; width:300px; max-height:200px; background:rgba(0,0,0,0.9); color:#0f0; font-family:monospace; font-size:0.8em; padding:10px; overflow-y:auto; z-index:10000; border-left:2px solid #0f0;">
+        <div style="margin-bottom:10px; border-bottom:1px solid #0f0; padding-bottom:5px;">DEBUG PANEL</div>
+        <div id="debugContent"></div>
+      </div>
+      <script>
+        window.debugLogs = [];
+        window.addDebug = function(msg) {
+          window.debugLogs.push(msg);
+          const panel = document.getElementById('debugContent');
+          if (panel) {
+            panel.innerHTML = window.debugLogs.slice(-10).map(m => '<div>' + m + '</div>').join('');
+          }
+        };
+        window.addEventListener('error', (e) => {
+          window.addDebug('ERROR: ' + e.message);
+        });
+      </script>
+      
+    <section class="account-card">
+      <h2>Account</h2>
+
+      <div id="authForms">
+        <div>
+          <label>Username</label>
+          <input id="acctUsername" placeholder="username" />
+        </div>
+        <div>
+          <label>Email (required, for account recovery)</label>
+          <input id="acctEmail" type="email" placeholder="email@example.com" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="acctPassword" type="password" placeholder="password" />
+        </div>
+        <div id="confirmPasswordRow">
+          <label>Confirm password</label>
+          <input id="acctPasswordConfirm" type="password" placeholder="confirm password" />
+        </div>
+        <div class="account-row">
+          <button id="createAccountBtn">Create Account</button>
+          <button id="loginBtn">Login</button>
+        </div>
+      </div>
+
+      <div id="loggedInArea" hidden>
+        <div class="small">Logged in as <strong id="acctName"></strong></div>
+        <div class="account-info">
+          <div>Level: <span id="acctLevel">0</span></div>
+          <div>XP: <span id="acctXP">0</span></div>
+          <div class="xp-bar-wrap" style="margin-top:8px; background:rgba(255,255,255,0.04); padding:6px; border-radius:8px;">
+            <div style="height:12px; background:rgba(0,0,0,0.12); border-radius:6px; overflow:hidden;">
+              <div id="acctXPBar" style="height:100%; width:0%; background:linear-gradient(90deg,#00c853,#00ff88);"></div>
+            </div>
+            <div class="small" style="margin-top:6px;">Next level at 100 XP</div>
+          </div>
+          <div style="margin-top:8px;">Stats: <span id="acctStats">—</span></div>
+        </div>
+        <div class="account-row" style="margin-top:12px;">
+          <button id="logoutBtn">Logout</button>
+          <button id="resetPasswordBtn" style="background:linear-gradient(90deg,#ffd700,#ffaa00); color:#000;">Reset Password</button>
+          <button id="deleteAccountBtn" style="background:linear-gradient(90deg,#ff6b6b,#ff4444);">Delete Account</button>
+        </div>
+        <div style="margin-top:16px;">
+          <h3 style="margin:8px 0 6px; color:#4ac9ff;">Friends</h3>
+          <div style="display:flex; gap:8px;">
+            <input id="friendAddInput" placeholder="friend's username" />
+            <button id="friendAddBtn">Add Friend</button>
+          </div>
+          <div id="friendsList" style="margin-top:10px;"></div>
+        </div>
+        <div style="margin-top:18px;">
+          <button id="resetStatsBtn" style="background:linear-gradient(90deg,#ff6b6b,#ff4444);">Reset Stats</button>
+        </div>
+        <div id="playerStatsSection" style="margin-top:24px; padding-top:16px; border-top:1px solid rgba(0,180,255,0.2);">
+          <h3 style="color:#4ac9ff; margin-top:0; margin-bottom:12px;">📊 Player Stats</h3>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.9em;">
+            <div style="background:rgba(0,180,255,0.08); padding:10px; border-radius:6px; border-left:3px solid #4ac9ff;">
+              <div style="color:#9fdcff; font-size:0.8em;">Games Played</div>
+              <div id="statGamesPlayed" style="color:#00ff88; font-size:1.4em; font-weight:bold; margin-top:4px;">0</div>
+            </div>
+            <div style="background:rgba(0,180,255,0.08); padding:10px; border-radius:6px; border-left:3px solid #ffd700;">
+              <div style="color:#9fdcff; font-size:0.8em;">Win Rate</div>
+              <div id="statWinRate" style="color:#ffd700; font-size:1.4em; font-weight:bold; margin-top:4px;">0%</div>
+            </div>
+            <div style="background:rgba(0,180,255,0.08); padding:10px; border-radius:6px; border-left:3px solid #00ff88;">
+              <div style="color:#9fdcff; font-size:0.8em;">Civilian Wins</div>
+              <div id="statCivilianWins" style="color:#00ff88; font-size:1.4em; font-weight:bold; margin-top:4px;">0</div>
+            </div>
+            <div style="background:rgba(0,180,255,0.08); padding:10px; border-radius:6px; border-left:3px solid #ff6b6b;">
+              <div style="color:#9fdcff; font-size:0.8em;">Imposter Wins</div>
+              <div id="statImposterWins" style="color:#ff6b6b; font-size:1.4em; font-weight:bold; margin-top:4px;">0</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:24px; padding-top:16px; border-top:1px solid rgba(0,180,255,0.2);">
+          <h3 style="color:#4ac9ff; margin-top:0; margin-bottom:12px;">🕐 Recent Games</h3>
+          <div id="recentGamesList" style="font-size:0.9em; max-height:300px; overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div id="resetStatsModal" hidden style="position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:2000;">
+        <div style="background:rgba(10,20,40,0.95); border:2px solid #ff4444; border-radius:12px; padding:30px; max-width:400px; text-align:center; box-shadow:0 12px 48px rgba(255,68,68,0.3);">
+          <h3 style="margin-top:0; color:#ff6b6b;">Reset Stats?</h3>
+          <p style="color:#e0f7ff; line-height:1.6;">This will permanently reset your XP and coins back to zero. This action cannot be undone.</p>
+          <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
+            <button id="resetStatsConfirmBtn" style="background:linear-gradient(90deg,#ff6b6b,#ff4444); padding:10px 20px; border:none; border-radius:6px; color:#fff; font-weight:600; cursor:pointer; flex:1;">Reset</button>
+            <button id="resetStatsCancelBtn" style="background:rgba(0,180,255,0.2); border:1px solid rgba(0,180,255,0.4); padding:10px 20px; border-radius:6px; color:#00b4ff; font-weight:600; cursor:pointer; flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="resetPasswordModal" hidden style="position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:2000;">
+        <div style="background:rgba(10,20,40,0.95); border:2px solid #ffd700; border-radius:12px; padding:30px; max-width:400px; text-align:center; box-shadow:0 12px 48px rgba(255,215,0,0.2);">
+          <h3 style="margin-top:0; color:#ffd700;">Reset Password</h3>
+          <div style="text-align:left; margin:20px 0;">
+            <label style="display:block; margin-bottom:8px; color:#9fdcff;">Username or Email</label>
+            <input id="resetPasswordUsernameInput" placeholder="Enter your username or email" style="width:100%; padding:8px; border-radius:6px; border:1px solid #0077ff; background:rgba(0,119,255,0.1); color:#fff; box-sizing:border-box;" />
+            <label style="display:block; margin-top:12px; margin-bottom:8px; color:#9fdcff;">New Password</label>
+            <input id="resetPasswordNewInput" type="password" placeholder="Enter new password" style="width:100%; padding:8px; border-radius:6px; border:1px solid #0077ff; background:rgba(0,119,255,0.1); color:#fff; box-sizing:border-box;" />
+            <label style="display:block; margin-top:12px; margin-bottom:8px; color:#9fdcff;">Confirm New Password</label>
+            <input id="resetPasswordConfirmInput" type="password" placeholder="Confirm new password" style="width:100%; padding:8px; border-radius:6px; border:1px solid #0077ff; background:rgba(0,119,255,0.1); color:#fff; box-sizing:border-box;" />
+          </div>
+          <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
+            <button id="resetPasswordConfirmBtn" style="background:linear-gradient(90deg,#ffd700,#ffaa00); color:#000; padding:10px 20px; border:none; border-radius:6px; font-weight:600; cursor:pointer; flex:1;">Reset</button>
+            <button id="resetPasswordCancelBtn" style="background:rgba(0,180,255,0.2); border:1px solid rgba(0,180,255,0.4); padding:10px 20px; border-radius:6px; color:#00b4ff; font-weight:600; cursor:pointer; flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="deleteAccountModal" hidden style="position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:2000;">
+        <div style="background:rgba(10,20,40,0.95); border:2px solid #ff4444; border-radius:12px; padding:30px; max-width:400px; text-align:center; box-shadow:0 12px 48px rgba(255,68,68,0.3);">
+          <h3 style="margin-top:0; color:#ff6b6b;">Delete Account?</h3>
+          <p style="color:#e0f7ff; line-height:1.6;">This will permanently delete your account and all associated data. This action cannot be undone.</p>
+          <div style="text-align:left; margin:20px 0;">
+            <label style="display:block; margin-bottom:8px; color:#9fdcff;">Password (to confirm)</label>
+            <input id="deleteAccountPasswordInput" type="password" placeholder="Enter your password" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ff4444; background:rgba(255,68,68,0.1); color:#fff; box-sizing:border-box;" />
+          </div>
+          <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
+            <button id="deleteAccountConfirmBtn" style="background:linear-gradient(90deg,#ff6b6b,#ff4444); padding:10px 20px; border:none; border-radius:6px; color:#fff; font-weight:600; cursor:pointer; flex:1;">Delete</button>
+            <button id="deleteAccountCancelBtn" style="background:rgba(0,180,255,0.2); border:1px solid rgba(0,180,255,0.4); padding:10px 20px; border-radius:6px; color:#00b4ff; font-weight:600; cursor:pointer; flex:1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="small" style="margin-top:12px;">Accounts are stored locally in your browser (localStorage). Passwords are encrypted using Web Crypto API.</p>
+      <p class="small">After playing, XP from rounds where your player name matches your account username will be added to your account.</p>
+    </section>
+    </section>
+    </main>
+  </div>
+  <script src="../js/crypto-utils.js"></script>
+  <script src="../js/account.js"></script>
+  <script>
+    // Auto-clear old caches on every load
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.startsWith('imposter-game-')) {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>

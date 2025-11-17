@@ -1,0 +1,40 @@
+{
+  "name": "Imposter Word Game",
+  "short_name": "Imposter",
+  "description": "A fun social deduction word game where players work together to find the imposter",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060c1e",
+  "theme_color": "#00b4ff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg width='192' height='192' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='10' fill='%2300b4ff'/><path d='M7 12h10M12 7v10' stroke='%23001' stroke-width='1.2' stroke-linecap='round'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg width='512' height='512' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='10' fill='%2300b4ff'/><path d='M7 12h10M12 7v10' stroke='%23001' stroke-width='1.2' stroke-linecap='round'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg width='540' height='720' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><rect width='24' height='24' fill='%23060c1e'/><circle cx='12' cy='12' r='10' fill='%2300b4ff'/><path d='M7 12h10M12 7v10' stroke='%23001' stroke-width='1.2' stroke-linecap='round'/></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "data:image/svg+xml,<svg width='1280' height='720' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><rect width='24' height='24' fill='%23060c1e'/><circle cx='12' cy='12' r='10' fill='%2300b4ff'/><path d='M7 12h10M12 7v10' stroke='%23001' stroke-width='1.2' stroke-linecap='round'/></svg>",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["games"],
+  "screenshots_dark": true
+}

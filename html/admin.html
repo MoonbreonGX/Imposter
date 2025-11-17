@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Imposter — Admin</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .admin-card { max-width:600px; margin:48px auto; padding:24px; border-radius:12px; background:rgba(6,12,30,0.9); }
+    .admin-card h2 { color:#ff6b6b; margin-top:0; }
+    .account-row-admin { display:flex; align-items:center; padding:12px; background:rgba(0,180,255,0.05); border-radius:8px; margin-bottom:8px; gap:12px; }
+    .account-row-admin .username { flex:1; font-weight:700; color:#4ac9ff; }
+    .account-row-admin .email { font-size:0.85em; color:#9fdcff; flex:1.2; }
+    .account-row-admin .delete-btn { background:linear-gradient(90deg,#ff6b6b,#ff4444); border:none; color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.9em; }
+    .account-row-admin .delete-btn:hover { box-shadow: 0 0 12px #ff4444; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Admin</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a id="sidebarAdminLink" href="admin.html" style="display:none;"><span class="icon">⚙️</span><span class="label">Admin</span></a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
+      
+      <!-- Battle Pass Modal -->
+      <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+      <!-- Battle Pass Toggle Button (Bottom Right) -->
+      <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
+      
+      <section class="admin-card">
+        <h2>🔐 Admin Panel</h2>
+        <p style="color:#9fdcff; margin-bottom:16px;">Manage user accounts and permissions.</p>
+
+        <div id="adminAuthForms">
+          <div style="margin-bottom:16px;">
+            <label>Admin Username</label>
+            <input id="adminUsername" placeholder="username" />
+          </div>
+          <div style="margin-bottom:16px;">
+            <label>Admin Password</label>
+            <input id="adminPassword" type="password" placeholder="password" />
+          </div>
+          <button id="adminLoginBtn" style="background:linear-gradient(90deg, #0077ff, #00b4ff); color:#fff; padding:10px 20px; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Login as Admin</button>
+        </div>
+
+        <div id="adminPanel" hidden style="margin-top:24px;">
+          <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(0,180,255,0.2);">
+            <p style="color:#4ac9ff; font-weight:700;">Logged in as: <span id="adminUsername2">—</span></p>
+          </div>
+
+          <h3 style="color:#4ac9ff; margin-top:0;">All Accounts</h3>
+          <div id="accountsList" style="max-height:600px; overflow-y:auto;"></div>
+
+          <div style="margin-top:24px; padding-top:16px; border-top:1px solid rgba(0,180,255,0.2);">
+            <button id="adminLogoutBtn" style="background:rgba(255,107,107,0.2); border:1px solid rgba(255,107,107,0.4); color:#ff6b6b; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:700;">Logout</button>
+          </div>
+        </div>
+        
+        <div id="adminChallenges" style="margin-top:24px;">
+          <h3 style="color:#4ac9ff;">📆 Daily Challenges</h3>
+          <form id="challengeForm" style="display:grid; gap:8px; max-width:720px;">
+            <label>Description</label>
+            <input id="chDesc" placeholder="Win 2 games as Imposter" />
+
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
+                <label>Role</label>
+                <select id="chRole">
+                  <option value="Any">Any</option>
+                  <option value="Imposter">Imposter</option>
+                  <option value="Civilian">Civilian</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label>Metric</label>
+                <select id="chMetric">
+                  <option value="wins">Wins</option>
+                  <option value="clues">Clues</option>
+                  <option value="votes">Votes</option>
+                  <option value="count">Count</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label>Target</label>
+                <input id="chTarget" type="number" min="1" value="1" />
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
+                <label>XP Reward</label>
+                <input id="chXP" type="number" value="100" />
+              </div>
+              <div style="flex:1;">
+                <label>Gems Reward</label>
+                <input id="chGems" type="number" value="0" />
+              </div>
+              <div style="flex:1;">
+                <label>Date Active</label>
+                <input id="chDate" type="date" />
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <button id="createChallengeBtn" type="button" style="background:linear-gradient(90deg,#00c853,#00ff88); color:#000; padding:10px 16px; border-radius:8px; border:none; font-weight:700;">Create Challenge</button>
+              <button id="listChallengesBtn" type="button" style="background:transparent; border:1px solid #4ac9ff; color:#4ac9ff; padding:10px 16px; border-radius:8px;">Refresh List</button>
+            </div>
+          </form>
+
+          <div id="existingChallenges" style="margin-top:12px; max-height:300px; overflow-y:auto; color:#9fdcff;"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../js/crypto-utils.js"></script>
+  <script src="../js/account.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script>
+    const ADMIN_USERNAMES = ['MoonbreonGX'];
+
+    function isAdmin(username) {
+      return ADMIN_USERNAMES.includes(username);
+    }
+
+    async function adminLogin() {
+      const u = document.getElementById('adminUsername').value?.trim();
+      const p = document.getElementById('adminPassword').value?.trim();
+      if (!u || !p) return alert('Username and password required');
+      
+      // Check if username is an admin account
+      if (!isAdmin(u)) return alert('User is not an admin');
+      
+      // Verify password
+      const res = await loginAccount(u, p);
+      if (!res.ok) return alert(res.msg);
+
+      // Show admin panel
+      document.getElementById('adminAuthForms').hidden = true;
+      document.getElementById('adminPanel').hidden = false;
+      document.getElementById('adminUsername2').textContent = u;
+      refreshAccountsList();
+    }
+
+    function refreshAccountsList() {
+      const list = document.getElementById('accountsList');
+      list.innerHTML = '';
+      const accounts = _loadAccounts();
+      const arr = Object.entries(accounts);
+      
+      if (arr.length === 0) {
+        list.innerHTML = '<p style="color:#9fdcff;">No accounts found.</p>';
+        return;
+      }
+
+      arr.forEach(([username, acc]) => {
+        const row = document.createElement('div');
+        row.className = 'account-row-admin';
+        
+        const userSpan = document.createElement('div');
+        userSpan.className = 'username';
+        userSpan.textContent = username;
+        if (isAdmin(username)) userSpan.textContent += ' [ADMIN]';
+        
+        const emailSpan = document.createElement('div');
+        emailSpan.className = 'email';
+        emailSpan.textContent = acc.email || '(no email)';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => {
+          if (confirm(`Delete account "${username}" permanently?`)) {
+            const accounts2 = _loadAccounts();
+            delete accounts2[username];
+            _saveAccounts(accounts2);
+            refreshAccountsList();
+            alert(`Account "${username}" deleted`);
+          }
+        });
+        
+        row.appendChild(userSpan);
+        row.appendChild(emailSpan);
+        if (!isAdmin(username)) row.appendChild(deleteBtn);
+        list.appendChild(row);
+      });
+    }
+
+    function adminLogout() {
+      logout();
+      document.getElementById('adminAuthForms').hidden = false;
+      document.getElementById('adminPanel').hidden = true;
+      document.getElementById('adminUsername').value = '';
+      document.getElementById('adminPassword').value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const adminLoginBtn = document.getElementById('adminLoginBtn');
+      const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+      
+      if (adminLoginBtn) adminLoginBtn.addEventListener('click', adminLogin);
+      if (adminLogoutBtn) adminLogoutBtn.addEventListener('click', adminLogout);
+
+      // Wire sidebar toggle
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar) {
+        try { if (localStorage.getItem('sidebarCollapsed') === '1') sidebar.classList.add('collapsed'); } catch (e) {}
+      }
+      if (sidebarToggle && sidebar) sidebarToggle.addEventListener('click', () => { sidebar.classList.toggle('collapsed'); try{ localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {} });
+
+      // Admin challenge handlers
+      const createBtn = document.getElementById('createChallengeBtn');
+      const listBtn = document.getElementById('listChallengesBtn');
+
+      async function loadExistingChallenges() {
+        // Simple list of all challenges
+        const res = await fetch('../server/dummy'); // placeholder to avoid lint
+        // We'll fetch via API (server endpoint not implemented for listing all in this session)
+        const container = document.getElementById('existingChallenges');
+        container.innerHTML = '<div style="opacity:0.7;">Use API or DB viewer to inspect challenges.</div>';
+      }
+
+      if (createBtn) createBtn.addEventListener('click', async () => {
+        try {
+          const desc = document.getElementById('chDesc').value.trim();
+          const role = document.getElementById('chRole').value;
+          const metric = document.getElementById('chMetric').value;
+          const target = parseInt(document.getElementById('chTarget').value, 10) || 1;
+          const xp = parseInt(document.getElementById('chXP').value, 10) || 100;
+          const gems = parseInt(document.getElementById('chGems').value, 10) || 0;
+          const dateVal = document.getElementById('chDate').value || null;
+
+          if (!desc) return alert('Description required');
+
+          const requirements = {};
+          if (role && role !== 'Any') requirements.role = role;
+          requirements[metric] = target;
+
+          await GameAPI.setDailyChallenge(desc, xp, gems, requirements, dateVal);
+          alert('Challenge created');
+          loadExistingChallenges();
+        } catch (err) {
+          alert('Failed to create challenge: ' + err.message);
+        }
+      });
+
+      if (listBtn) listBtn.addEventListener('click', loadExistingChallenges);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Imposter - A social word game where players work together to find the imposter" />
+  <meta name="theme-color" content="#00b4ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Imposter" />
+  <link rel="manifest" href="../manifest.json" />
+  <link rel="icon" type="image/png" href="../assets/imposter-logo.png" sizes="512x512">
+  <link rel="apple-touch-icon" href="../assets/imposter-logo.png">
+  <title>Imposter — Home</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    /* small homepage overrides */
+    body.home {
+      display:flex;align-items:center;justify-content:center;min-height:100vh;padding:0;margin:0;
+      background: radial-gradient(circle at 10% 10%, #071022, #000);
+      color: #e0f7ff;
+    }
+    .home-card { text-align:center; padding:48px; border-radius:14px; background:rgba(6,12,30,0.8); box-shadow:0 12px 40px rgba(0,180,255,0.12); border:2px solid rgba(0,180,255,0.12);}
+    .home-title { font-size:4rem; color:#4ac9ff; text-shadow:0 0 20px #00b4ff; margin:0 0 12px; }
+    .home-sub { opacity:0.9; margin-bottom:20px; }
+    .home-buttons { display:flex; gap:12px; justify-content:center; margin-top:18px; }
+    .home-buttons a { padding:12px 22px; border-radius:8px; text-decoration:none; font-weight:700; }
+    .play-btn { background:linear-gradient(90deg,#00c853,#00ff88); color:#000; }
+    .account-btn { background:linear-gradient(90deg,#0077ff,#00b4ff); color:#fff; }
+    /* simple animated techy background */
+    .bg-dots { position:absolute;inset:0;opacity:0.12;background-image: radial-gradient(circle at 10% 20%, #00b4ff 1px, transparent 2px), radial-gradient(circle at 80% 70%, #00ff88 1px, transparent 2px); background-size: 60px 60px, 80px 80px; }
+  </style>
+  <style>
+    @media (max-width: 768px) {
+      .home-title { font-size: 2.5rem; }
+      .home-card { padding: 32px; }
+      .home-buttons { flex-direction: column; }
+    }
+  </style>
+  <script src="../js/account.js"></script>
+  <script src="../js/api-client.js"></script>
+</head>
+<body class="home">
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+        <a href="shop.html"><span class="icon">🛒</span><span class="label">Shop</span></a>
+        <a id="sidebarAdminLink" href="admin.html" style="display:none;"><span class="icon">⚙️</span><span class="label">Admin</span></a>
+      </nav>
+      <div id="playerAccountInfo" class="account-preview"></div>
+    </aside>
+
+    <div class="content">
+      <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
+      
+      <!-- Battle Pass Modal -->
+      <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+      <!-- Battle Pass Toggle Button (Bottom Right) -->
+      <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
+      <div class="bg-dots" aria-hidden="true"></div>
+      <div class="home-card">
+        <div class="home-title">🎭 Imposter</div>
+        <div class="home-sub">A social word game — find the imposters, keep your secret word.</div>
+        <div class="home-stats" style="margin:24px 0; padding:18px 0; border-top:1px solid rgba(0,180,255,0.2); border-bottom:1px solid rgba(0,180,255,0.2);">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; text-align:center; font-size:0.95em;">
+            <div><div style="font-size:1.8em; color:#00ff88; font-weight:bold;" id="statPlayers">—</div><div style="color:#9fdcff; margin-top:6px;">Active Players</div></div>
+            <div><div style="font-size:1.8em; color:#ffd700; font-weight:bold;" id="statGames">—</div><div style="color:#9fdcff; margin-top:6px;">Games Played</div></div>
+          </div>
+        </div>
+        <div class="home-buttons">
+          <a class="play-btn" href="play.html">▶️ Play Now</a>
+          <a class="account-btn" href="account.html">👤 My Account</a>
+          <button id="installBtn" class="install-btn" style="padding:12px 22px; border-radius:8px; border:2px solid #00b4ff; background:transparent; color:#4ac9ff; font-weight:700; cursor:pointer; display:none;">⬇️ Download App</button>
+        </div>
+        <div style="margin-top:16px; font-size:0.85em; color:#9fdcff;">
+          <div>Quick Stats</div>
+          <div style="margin-top:8px; display:flex; justify-content:center; gap:24px;">
+            <div><span id="topPlayer" style="color:#4ac9ff; font-weight:bold;">—</span><br/>Top Player</div>
+          </div>
+        </div>
+      </div>
+      <div class="home-card" id="dailyChallengeCard" style="margin-top:18px; display:none;">
+        <h3 style="margin-top:0; color:#4ac9ff;">🎯 Today's Challenge</h3>
+        <div id="dailyChallengeContent" style="color:#9fdcff;"></div>
+      </div>
+      <div class="home-card" style="margin-top:24px;">
+        <h3 style="margin-top:0; color:#4ac9ff;">📋 Recent Games</h3>
+        <div id="recentGamesContainer" style="font-size:0.9em; color:#9fdcff; max-height:300px; overflow-y:auto;">
+          <div style="text-align:center; opacity:0.7;">No games yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="js/account.js"></script>
+  <script>
+    // Auto-clear old caches on every load
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.startsWith('imposter-game-')) {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+    
+    // Register service worker for PWA capabilities
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('../js/service-worker.js').then((reg) => {
+          console.log('Service Worker registered successfully:', reg);
+        }).catch((error) => {
+          console.log('Service Worker registration failed:', error);
+        });
+      });
+    }
+
+    // Sidebar toggle
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.sidebar');
+      if (!sidebar) return;
+      try {
+        const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+        if (collapsed) sidebar.classList.add('collapsed');
+      } catch (e) {}
+      if (btn) btn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        try { localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+      });
+    });
+
+    // Handle PWA install prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) {
+        installBtn.style.display = 'block';
+      }
+      // Show admin link if admin logged in
+      try { if (localStorage.getItem('isAdmin') === '1') { const l = document.getElementById('sidebarAdminLink'); if (l) l.style.display = ''; } } catch (e) {}
+
+      // Load today's challenge (if logged in)
+      try {
+        (async () => {
+          const challenge = await GameAPI.getDailyChallenge();
+          if (challenge && !challenge.error) {
+            const card = document.getElementById('dailyChallengeCard');
+            const content = document.getElementById('dailyChallengeContent');
+            if (card && content) {
+              card.style.display = 'block';
+              const prog = challenge.progress || 0;
+              const target = challenge.target || (challenge.requirements && (challenge.requirements.wins || challenge.requirements.count || 0)) || 0;
+              const pct = target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : 0;
+              content.innerHTML = `
+                <div style="font-weight:700; color:#fff;">${challenge.description}</div>
+                <div style="margin-top:8px;">Progress: ${prog} / ${target}</div>
+                <div style="background:rgba(255,255,255,0.06); height:12px; border-radius:6px; margin-top:8px; overflow:hidden;"><div style="width:${pct}%; height:100%; background:linear-gradient(90deg,#4ac9ff,#00ff88);"></div></div>
+              `;
+              if (!challenge.completed && target > 0 && prog >= target) {
+                const claimBtn = document.createElement('button');
+                claimBtn.textContent = 'Claim Reward';
+                claimBtn.style.cssText = 'margin-top:10px;padding:8px 12px;border-radius:8px;border:none;background:linear-gradient(90deg,#00c853,#00ff88);font-weight:700;cursor:pointer;';
+                claimBtn.addEventListener('click', async () => {
+                  try {
+                    await GameAPI.completeDailyChallenge(challenge.id);
+                    alert('Challenge claimed!');
+                    location.reload();
+                  } catch (e) { alert('Claim failed: ' + e.message); }
+                });
+                content.appendChild(claimBtn);
+              }
+            }
+          }
+        })();
+      } catch (e) {}
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          deferredPrompt = null;
+          installBtn.style.display = 'none';
+        }
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      if (installBtn) {
+        installBtn.style.display = 'none';
+      }
+    });
+
+    // Show quick stats on home page
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar) {
+        try { if (localStorage.getItem('sidebarCollapsed') === '1') sidebar.classList.add('collapsed'); } catch (e) {}
+      }
+      if (sidebarToggle && sidebar) sidebarToggle.addEventListener('click', () => { sidebar.classList.toggle('collapsed'); try{ localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {} });
+
+      // Load and display stats
+      try {
+        const accounts = JSON.parse(localStorage.getItem('accounts') || '{}');
+        const players = Object.keys(accounts).length;
+        const topXp = Math.max(0, ...Object.values(accounts).map(a => a.xp || 0));
+        const topName = Object.entries(accounts).find(([k, v]) => v.xp === topXp)?.[0] || 'None yet';
+        const topLvl = Math.floor(topXp / 100);
+        
+        document.getElementById('statPlayers').textContent = players;
+        document.getElementById('statGames').textContent = Math.max(0, players * 3);
+        document.getElementById('topPlayer').textContent = `${topName} (Lv ${topLvl})`;
+      } catch (e) {}
+
+      // Load and display recent games (only for logged-in account; show last 5)
+      try {
+        const container = document.getElementById('recentGamesContainer');
+        const current = localStorage.getItem('currentUser');
+        if (!current) {
+          container.innerHTML = '<div style="text-align:center; opacity:0.7;">Log in to view your recent games</div>';
+        } else if (typeof getRecentGames === 'function') {
+          const allGames = JSON.parse(localStorage.getItem('gameHistory') || '[]');
+          const filtered = allGames.filter(g => Array.isArray(g.players) && g.players.includes(current));
+          const games = filtered.slice(-5).reverse();
+          if (games.length === 0) {
+            container.innerHTML = '<div style="text-align:center; opacity:0.7;">No games yet for your account</div>';
+          } else {
+            container.innerHTML = '';
+            games.forEach(game => {
+              const date = new Date(game.timestamp).toLocaleTimeString();
+              const result = game.won ? '✅ Civilians Won' : '💀 Imposters Won';
+              const resultColor = game.won ? '#00ff88' : '#ff6b6b';
+              const gameDiv = document.createElement('div');
+              gameDiv.style.cssText = `padding:8px 0; border-bottom:1px solid rgba(0,180,255,0.1); display:flex; justify-content:space-between; align-items:center;`;
+              gameDiv.innerHTML = `
+                <div style="flex:1;">
+                  <div style="font-weight:500; color:#4ac9ff;">${game.word || 'Unknown'}</div>
+                  <div style="font-size:0.8em; opacity:0.7;">${game.players.length} players • ${date}</div>
+                </div>
+                <div style="color:${resultColor}; font-weight:bold; font-size:0.85em;">${result}</div>
+              `;
+              container.appendChild(gameDiv);
+            });
+          }
+        }
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>

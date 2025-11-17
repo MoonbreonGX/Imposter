@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Imposter — Play</title>
+  <link rel="icon" type="image/png" href="../assets/imposter-logo.png" sizes="512x512">
+  <link rel="apple-touch-icon" href="../assets/imposter-logo.png">
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+        <!-- Debug Panel -->
+        <div id="debugPanel" style="position:fixed; top:0; right:0; width:300px; max-height:200px; background:rgba(0,0,0,0.9); color:#0f0; font-family:monospace; font-size:0.8em; padding:10px; overflow-y:auto; z-index:10000; border-left:2px solid #0f0;">
+          <div style="margin-bottom:10px; border-bottom:1px solid #0f0; padding-bottom:5px;">DEBUG PANEL</div>
+          <div id="debugContent"></div>
+        </div>
+        <script>
+          window.debugLogs = [];
+          window.addDebug = function(msg) {
+            window.debugLogs.push(msg);
+            const panel = document.getElementById('debugContent');
+            if (panel) {
+              panel.innerHTML = window.debugLogs.slice(-10).map(m => '<div>' + m + '</div>').join('');
+            }
+          };
+          window.addEventListener('error', (e) => {
+            window.addDebug('ERROR: ' + e.message);
+          });
+        </script>
+    
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+        <a href="shop.html"><span class="icon">🛒</span><span class="label">Shop</span></a>
+        <a id="sidebarAdminLink" href="admin.html" style="display:none;"><span class="icon">⚙️</span><span class="label">Admin</span></a>
+      </nav>
+      <div id="playerAccountInfo" class="account-preview"></div>
+    </aside>
+
+    <main id="app" class="content">
+      <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
+      
+      <!-- Battle Pass Modal -->
+      <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+      <!-- Battle Pass Toggle Button (Bottom Right) -->
+      <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
+    <!-- Setup Screen -->
+    <section id="setup">
+      <h1>Imposter</h1>
+      <label>Number of players</label>
+      <input id="playerCount" type="number" min="3" max="10" value="6" />
+
+      <label>Number of imposters</label>
+      <input id="imposterCount" type="number" min="1" max="3" value="1" />
+
+      <div id="playerNames"></div>
+
+      <label>Difficulty</label>
+      <ul class="difficulty-list" role="list">
+        <li><button type="button" class="difficulty-btn active" data-value="easy">Easy</button></li>
+        <li><button type="button" class="difficulty-btn" data-value="medium">Medium</button></li>
+      </ul>
+
+      <label>Mode</label>
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn active" data-mode="offline">Offline</button>
+        <button type="button" class="mode-btn" data-mode="online">Online</button>
+      </div>
+
+      <label>Discussion time (seconds)</label>
+      <input id="discussionDuration" type="number" min="10" max="1200" value="600" />
+
+      <button id="wordPacksBtn">Configure Word Packs</button>
+      <button id="startBtn">Start game</button>
+    </section>
+
+    <!-- Online Lobby Screen -->
+    <section id="onlineLobby" hidden>
+      <div class="online-lobby-container">
+        <h2>Waiting for players...</h2>
+        <div class="room-code-display">
+          <p>Room Code:</p>
+          <div class="code-box" id="roomCodeDisplay">----</div>
+          <button id="copyRoomCodeBtn" class="copy-btn">Copy code</button>
+        </div>
+        <div class="player-list-container">
+          <h3>Players joined (<span id="playerCount2">0</span>)</h3>
+          <ul id="onlinePlayerList" class="player-list"></ul>
+        </div>
+        <div class="lobby-actions">
+          <button id="onlineStartBtn" class="start-btn" style="display: none;">Start game</button>
+          <p id="hostNotice" style="display: none; color: #666; font-size: 0.9em;">You are the host</p>
+          <button id="inviteFriendBtn" style="display:inline-block; margin-right:8px;">Invite / Copy link</button>
+          <button id="leaveLobbyBtn">Leave</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Online Playing Screen (Role Reveal + Chat) -->
+    <section id="onlinePlaying" hidden>
+      <div class="online-playing-container">
+        <div class="online-game-main">
+          <!-- Role Notification -->
+          <div id="roleNotification" hidden class="role-notification">
+            <div class="notification-overlay"></div>
+            <div class="notification-card">
+              <h2 id="notifRole">CIVILIAN</h2>
+              <p id="notifWord" style="font-size: 1.2em; margin: 12px 0;">ELEPHANT</p>
+              <p id="notifHint" style="font-size: 0.9em; color: #999;"></p>
+              <button id="dismissRoleBtn">OK</button>
+            </div>
+          </div>
+
+          <!-- Chat Area -->
+          <div class="online-chat">
+            <h3>Discussion</h3>
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+              <div style="font-weight:700; color:#9fdcff;">Discussion</div>
+              <div id="onlineDiscussionTimer" style="font-weight:700; color:#ffd700;"></div>
+              <button id="onlineSkipDiscussionBtn" style="display:none;">Skip discussion</button>
+            </div>
+            <div id="onlineChatMessages" class="chat-messages"></div>
+            <div class="chat-input-container">
+              <input id="onlineChatInput" type="text" placeholder="Send a message..." />
+              <button id="onlineChatSend">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clue Submission (if needed) -->
+        <div id="clueSubmissionArea" hidden class="clue-area">
+          <h3>Your clue</h3>
+          <p id="cluePlayerName" style="color:#4ac9ff; font-weight:700;"></p>
+          <input id="clueInput" type="text" placeholder="Enter your clue..." />
+          <button id="submitClueBtn">Submit clue</button>
+        </div>
+
+        <!-- Clues display area (during discussion) -->
+        <div id="cluesDisplayArea" hidden class="clues-display">
+          <h3>Clues submitted</h3>
+          <div id="cluesDisplay" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Voting reveal screen (show who was accused) -->
+      <div id="votingRevealArea" hidden class="voting-reveal">
+        <div style="font-size:2.4em; font-weight:900; color:#4ac9ff; margin-bottom:16px;">VOTED OUT</div>
+        <div id="revealedPlayerName" style="font-size:3em; font-weight:900; color:#00ff88; text-shadow:0 0 20px rgba(0,255,136,0.6); text-transform:uppercase;"></div>
+        <div style="margin-top:20px; font-size:1.1em; color:#9fdcff;">The group has spoken!</div>
+      </div>
+    </section>
+
+    <!-- Online Voting Screen with Timer -->
+    <section id="onlineVoting" hidden>
+      <div class="online-voting-container">
+        <h2>Vote the Imposter</h2>
+        
+        <!-- Voting Timer (Online only) -->
+        <div class="voting-timer-container">
+          <div class="timer-circle">
+            <svg class="timer-svg" width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="55" class="timer-bg" />
+              <circle cx="60" cy="60" r="55" class="timer-progress" />
+            </svg>
+            <div class="timer-text" id="votingTimerText">30</div>
+          </div>
+        </div>
+
+        <div id="onlineVoteOptions" class="vote-options-container"></div>
+        <p id="onlineVoteResult"></p>
+        
+        <!-- Imposter Guess (if needed) -->
+        <div id="imposterGuessArea" hidden>
+          <h3>Imposter guess</h3>
+          <input id="imposterGuessInput" placeholder="Guess the word..." />
+          <button id="submitGuessBtn">Guess</button>
+          <p id="guessResult"></p>
+        </div>
+
+        <button id="onlineNewRoundBtn" style="display: none;">New round</button>
+      </div>
+    </section>
+
+    <!-- Role Reveal -->
+    <section id="role" hidden>
+      <div class="role-inner">
+        <div id="rolePlayerHeader" style="text-align:center; margin-bottom:16px;">
+          <h2 id="rolePlayerName" style="margin:0;">—</h2>
+        </div>
+
+        <div class="flip-card" id="roleCard">
+          <div class="flip-card-inner">
+            <div class="flip-card-front" id="roleCardFront">
+              <div class="card-label">Hover to reveal</div>
+              <!-- show player's name on the front to avoid confusion -->
+              <div class="card-username" id="roleCardFrontName">Player</div>
+            </div>
+            <div class="flip-card-back" id="roleCardBack">
+              <div class="back-name" id="roleCardBackName"></div>
+              <div class="back-role" id="roleCardBackRole"></div>
+              <div class="back-word" id="roleCardBackWord"></div>
+              <div class="back-hint" id="roleCardBackHint"></div>
+            </div>
+          </div>
+        </div>
+
+        <button id="nextRoleBtn" class="role-next">Next player</button>
+      </div>
+    </section>
+
+    <!-- Discussion Timer (replaces clue round) -->
+    <section id="discussion" hidden>
+      <h2>Discussion</h2>
+      <p>Discussion time remaining: <span id="discussionTimer">02:00</span></p>
+      <div class="discussion-controls">
+        <button id="skipDiscussionBtn">Skip to voting</button>
+      </div>
+    </section>
+
+    <!-- Voting -->
+    <section id="vote" hidden>
+      <h2>Vote the Imposter</h2>
+      <div id="voteOptions"></div>
+      <p id="voteResult"></p>
+      <div id="imposterGuess" hidden>
+        <h3>Imposter guess</h3>
+        <input id="guessInput" placeholder="Guess the word..." />
+        <button id="submitOfflineGuessBtn">Guess</button>
+        <p id="guessResult"></p>
+      </div>
+      <button id="newRoundBtn">New round</button>
+    </section>
+
+    <!-- Victory Animation Overlay -->
+    <div id="victoryAnimation" hidden>
+      <div class="victory-overlay"></div>
+      <div class="victory-container">
+        <div class="victory-text">🎉 VICTORY! 🎉</div>
+        <div class="victory-shine"></div>
+        <div id="confettiContainer"></div>
+        <div id="scoreBoard" class="victory-scoreboard"></div>
+        <div class="victory-buttons">
+          <button id="victoryNextRoundBtn" class="victory-btn next-round">Next Round</button>
+          <button id="victoryHomeBtn" class="victory-btn home">Back to Home</button>
+        </div>
+      </div>
+    </div>
+    </main>
+  </div>
+  <script src="../js/crypto-utils.js"></script>
+  <script src="../js/account.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/battle-pass.js"></script>
+  <script src="../js/game.js"></script>
+  <script src="../js/online.js"></script>
+  <script>
+    // Auto-clear old caches on every load
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.startsWith('imposter-game-') && name !== ('imposter-game-' + new Date().getTime())) {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+    
+    // Wire sidebar toggle on play page
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar) {
+        try { if (localStorage.getItem('sidebarCollapsed') === '1') sidebar.classList.add('collapsed'); } catch (e) {}
+      }
+      if (sidebarToggle && sidebar) sidebarToggle.addEventListener('click', () => { sidebar.classList.toggle('collapsed'); try{ localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {} });
+        try { if (localStorage.getItem('isAdmin') === '1') { const l = document.getElementById('sidebarAdminLink'); if (l) l.style.display = ''; } } catch (e) {}
+    });
+  </script>
+</body>
+</html>

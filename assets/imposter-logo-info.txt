@@ -1,0 +1,2 @@
+<!-- This is a placeholder. The actual image needs to be saved as assets/imposter-logo.png -->
+<!-- The image should be 512x512 pixels minimum for best quality -->

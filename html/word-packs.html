@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Packs - Imposter Word Game</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+      </nav>
+      <div id="playerAccountInfo" class="account-preview"></div>
+    </aside>
+
+    <main class="content">
+    <!-- Battle Pass Modal -->
+    <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+    <!-- Battle Pass Toggle Button (Bottom Right) -->
+    <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>      <section id="packSelection">
+        <h1>Imposter</h1>
+        <h2>Select Word Packs</h2>
+        <p>Choose one or more packs to randomize words from:</p>
+        <div id="packOptions"></div>
+        <div class="pack-buttons">
+          <button id="backBtn">Back</button>
+          <button id="confirmPacksBtn">Continue</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="../data/words.js"></script>
+  <script src="../js/word-packs.js"></script>
+  <script>
+    // Auto-clear old caches on every load
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.startsWith('imposter-game-')) {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>

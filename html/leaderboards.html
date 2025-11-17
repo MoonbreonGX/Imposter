@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Imposter — Leaderboards</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .lb-card { max-width:720px;margin:24px auto;padding:18px;border-radius:12px;background:rgba(6,12,30,0.9);}
+    .lb-row { display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.02); }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+        <a href="shop.html"><span class="icon">🛒</span><span class="label">Shop</span></a>
+        <a id="sidebarAdminLink" href="admin.html" style="display:none;"><span class="icon">⚙️</span><span class="label">Admin</span></a>
+      </nav>
+      <div id="playerAccountInfo" class="account-preview"></div>
+    </aside>
+
+    <main class="content">
+      <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
+      
+      <!-- Battle Pass Modal -->
+      <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+      <!-- Battle Pass Toggle Button (Bottom Right) -->
+      <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
+      
+      <section class="lb-card">
+      <h2>Leaderboards</h2>
+      
+      <div id="leaderboardLoginPrompt" style="text-align:center; padding:30px; color:#9fdcff;">
+        <p style="font-size:1.1em;">🔐 Log in to see leaderboards</p>
+      </div>
+      
+      <div id="leaderboardContent" style="display:none;">
+        <div style="margin:12px 0; display:flex; gap:12px; align-items:center;">
+          <label for="leaderFilter">Filter:</label>
+          <select id="leaderFilter">
+            <option value="xp">XP</option>
+            <option value="win_civilian">Win Rate (Civilian)</option>
+            <option value="win_imposter">Win Rate (Imposter)</option>
+            <option value="win_overall">Overall Win Rate</option>
+          </select>
+        </div>
+
+        <h3 style="margin-top:18px;">All Players</h3>
+        <div id="allPlayers"></div>
+      </div>
+    </section>
+    </section>
+    </main>
+  </div>
+  <script src="../js/account.js"></script>
+  <script>
+    // Auto-clear old caches on every load
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.startsWith('imposter-game-')) {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+
+  function _loadAccounts(){ try{return JSON.parse(localStorage.getItem('accounts')||'{}')}catch(e){return{}} }
+
+  function computeMetrics(username) {
+    const acc = _loadAccounts()[username] || {};
+    const stats = calculatePlayerStats(username) || { gamesPlayed:0, wins:0, civilianWins:0, imposterWins:0 };
+    const overallWin = stats.gamesPlayed ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0;
+    const civWin = stats.gamesPlayed ? Math.round((stats.civilianWins / stats.gamesPlayed) * 100) : 0;
+    const impWin = stats.gamesPlayed ? Math.round((stats.imposterWins / stats.gamesPlayed) * 100) : 0;
+    return { username, xp: acc.xp || 0, overallWin, civWin, impWin, gamesPlayed: stats.gamesPlayed };
+  }
+
+  function render(filter) {
+    const allContainer = document.getElementById('allPlayers');
+    allContainer.innerHTML = '';
+    const accounts = _loadAccounts();
+    const list = Object.keys(accounts).map(u => computeMetrics(u));
+
+    const sorter = {
+      'xp': (a,b)=>b.xp - a.xp,
+      'win_civilian': (a,b)=>b.civWin - a.civWin,
+      'win_imposter': (a,b)=>b.impWin - a.impWin,
+      'win_overall': (a,b)=>b.overallWin - a.overallWin
+    }[filter || 'xp'];
+
+    list.sort(sorter);
+
+    list.forEach((p, idx)=>{
+      const el = document.createElement('div'); el.className='lb-row';
+      el.innerHTML = `<div>#${idx+1} ${p.username} <span style="font-size:0.85em; color:#9fdcff;">(${p.gamesPlayed} games)</span></div><div>${filter==='xp'? p.xp : (filter==='win_civilian'? p.civWin : (filter==='win_imposter'? p.impWin : p.overallWin))}${filter==='xp' ? ' XP' : ' %'}</div>`;
+      allContainer.appendChild(el);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const user = getCurrentUser();
+    const loginPrompt = document.getElementById('leaderboardLoginPrompt');
+    const content = document.getElementById('leaderboardContent');
+    
+    if (!user) {
+      loginPrompt.style.display = 'block';
+      content.style.display = 'none';
+      return;
+    }
+    
+    loginPrompt.style.display = 'none';
+    content.style.display = 'block';
+    
+    const sel = document.getElementById('leaderFilter');
+    if (sel) sel.addEventListener('change', ()=> render(sel.value));
+    render(sel ? sel.value : 'xp');
+  });
+  </script>
+</body>
+</html>

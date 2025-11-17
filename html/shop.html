@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shop - Imposter</title>
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <div class="sidebar-top">
+          <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+          <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+        </div>
+        <nav>
+          <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+          <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+          <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+          <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+          <a href="shop.html"><span class="icon">🛒</span><span class="label">Shop</span></a>
+          <a id="sidebarAdminLink" href="admin.html" style="display:none;"><span class="icon">⚙️</span><span class="label">Admin</span></a>
+        </nav>
+        <div id="playerAccountInfo" class="account-preview"></div>
+      </aside>
+
+      <main class="content">
+        <div id="topRightInfo" class="top-right-info" aria-hidden="true"></div>
+        
+        <!-- Battle Pass Modal -->
+        <div id="battlePassModal" class="bp-modal">
+          <div class="bp-modal-content">
+            <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+            <div class="bp-header">
+              <div class="bp-title">🎖️ BATTLE PASS</div>
+              <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+            </div>
+            <div class="bp-progress-container">
+              <div id="bpProgress" class="bp-progress-bar">
+                <div id="bpProgressBar" class="bp-progress-fill"></div>
+              </div>
+              <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+            </div>
+            <div class="bp-strip" id="bpStrip"></div>
+          </div>
+        </div>
+        
+        <!-- Battle Pass Toggle Button (Bottom Right) -->
+        <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>
+        
+      <section class="shop">
+        <h1>Shop</h1>
+        <p>Buy skins and cosmetics with coins. Earn coins by playing games (10 coins per 50 XP).</p>
+        <div id="shopLoginPrompt" style="text-align:center; padding:20px; color:#9fdcff;">
+          <p style="font-size:1.1em;">🔐 Log in to see the shop</p>
+        </div>
+        <div id="shopGrid" class="shop-grid" style="display:none;"></div>
+      </section>
+    </main>
+  </div>
+  <script src="../js/crypto-utils.js"></script>
+  <script src="../js/account.js"></script>
+  <script>
+    // Auto-clear old caches on every load
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.startsWith('imposter-game-')) {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+
+    const SHOP_ITEMS = [
+      { id: 'skin-red', name: 'Red Theme', cost: 50, desc: 'Bright red card theme' },
+      { id: 'skin-blue', name: 'Blue Theme', cost: 50, desc: 'Cool blue card theme' },
+      { id: 'skin-gold', name: 'Gold Frame', cost: 120, desc: 'Shiny gold frame' },
+      { id: 'skin-rainbow', name: 'Rainbow', cost: 250, desc: 'Animated rainbow effect' }
+    ];
+
+    function renderShop() {
+      const grid = document.getElementById('shopGrid');
+      const loginPrompt = document.getElementById('shopLoginPrompt');
+      const user = getCurrentUser();
+      
+      if (!user) {
+        loginPrompt.style.display = 'block';
+        grid.style.display = 'none';
+        return;
+      }
+      
+      loginPrompt.style.display = 'none';
+      grid.style.display = 'grid';
+      grid.innerHTML = '';
+      
+      const account = getAccount(user);
+      if (!account) return;
+
+      SHOP_ITEMS.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'shop-item';
+        card.innerHTML = `<h3>${item.name}</h3><p>${item.desc}</p><div class="cost">${item.cost}🪙</div>`;
+
+        const btn = document.createElement('button');
+        const owned = account.skins && account.skins.includes(item.id);
+        btn.textContent = owned ? 'Owned' : 'Buy';
+        btn.disabled = owned;
+        btn.addEventListener('click', () => buyItem(item.id, item.cost));
+        card.appendChild(btn);
+
+        grid.appendChild(card);
+      });
+    }
+
+    function buyItem(id, cost) {
+      const user = getCurrentUser();
+      if (!user) return alert('Please log in to buy items.');
+      const accounts = _loadAccounts();
+      const acc = accounts[user];
+      if (!acc) return alert('Account not found');
+      if ((acc.coins || 0) < cost) return alert('Not enough coins.');
+      acc.coins = (acc.coins || 0) - cost;
+      acc.skins = acc.skins || [];
+      if (!acc.skins.includes(id)) acc.skins.push(id);
+      _saveAccounts(accounts);
+      account_refreshAllDisplays();
+      renderShop();
+      alert('Purchase successful!');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderShop();
+      // Sidebar toggle
+      const btn = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.sidebar');
+      if (!sidebar) return;
+      try {
+        const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+        if (collapsed) sidebar.classList.add('collapsed');
+      } catch (e) {}
+      if (btn) btn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        try { localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+      });
+    });
+  </script>
+  </body>
+</html>

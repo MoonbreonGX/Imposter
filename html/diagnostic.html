@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diagnostic Test</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    body { background:#1a1a2e; color:#4ac9ff; font-family:Arial; margin:20px; }
+    .test { margin:10px 0; padding:10px; background:rgba(0,180,255,0.1); border-left:3px solid #4ac9ff; }
+    .pass { border-left-color:#00ff88; background:rgba(0,255,136,0.1); }
+    .fail { border-left-color:#ff6b6b; background:rgba(255,107,107,0.1); }
+    h1 { color:#fff; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <main class="content">
+    <!-- Battle Pass Modal -->
+    <div id="battlePassModal" class="bp-modal">
+        <div class="bp-modal-content">
+          <div class="bp-modal-close-btn" id="closeBpBtn">✕</div>
+          <div class="bp-header">
+            <div class="bp-title">🎖️ BATTLE PASS</div>
+            <div class="bp-tier-display">TIER <span id="bpTier" class="bp-tier-num">1</span></div>
+          </div>
+          <div class="bp-progress-container">
+            <div id="bpProgress" class="bp-progress-bar">
+              <div id="bpProgressBar" class="bp-progress-fill"></div>
+            </div>
+            <div id="bpXP" class="bp-xp-text">0 / 30 XP</div>
+          </div>
+          <div class="bp-strip" id="bpStrip"></div>
+        </div>
+      </div>
+      
+    <!-- Battle Pass Toggle Button (Bottom Right) -->
+    <button id="bpToggleBtn" class="bp-toggle-btn">🎖️ PASS</button>      <h1>Diagnostic Test</h1>
+      
+      <div id="output"></div>
+    </main>
+  </div>
+  
+  <script>
+    const output = document.getElementById('output');
+    
+    function addTest(name, passed, details = '') {
+      const div = document.createElement('div');
+      div.className = 'test ' + (passed ? 'pass' : 'fail');
+      div.innerHTML = '<strong>' + name + '</strong>: ' + (passed ? '✓ PASS' : '✗ FAIL');
+      if (details) div.innerHTML += '<br>' + details;
+      output.appendChild(div);
+    }
+    
+    // Test 1: Check if we're in the right directory
+    const currentURL = window.location.href;
+    addTest('Current URL', true, currentURL);
+    
+    // Test 2: Try loading crypto-utils
+    const script1 = document.createElement('script');
+    script1.onload = function() {
+      addTest('Load crypto-utils.js', true, 'Script loaded');
+    };
+    script1.onerror = function() {
+      addTest('Load crypto-utils.js', false, 'Script failed to load');
+    };
+    script1.src = '../js/crypto-utils.js';
+    document.head.appendChild(script1);
+    
+    // Test 3: Try loading account.js
+    setTimeout(() => {
+      const script2 = document.createElement('script');
+      script2.onload = function() {
+        addTest('Load account.js', true, 'Script loaded');
+      };
+      script2.onerror = function() {
+        addTest('Load account.js', false, 'Script failed to load');
+      };
+      script2.src = '../js/account.js';
+      document.head.appendChild(script2);
+    }, 500);
+    
+    // Test 4: Check localStorage
+    setTimeout(() => {
+      try {
+        localStorage.setItem('test', 'value');
+        const val = localStorage.getItem('test');
+        addTest('localStorage', val === 'value', 'Read/write working');
+        localStorage.removeItem('test');
+      } catch (e) {
+        addTest('localStorage', false, e.message);
+      }
+    }, 1000);
+    
+    // Test 5: Check if CryptoUtil loaded
+    setTimeout(() => {
+      addTest('CryptoUtil available', typeof CryptoUtil !== 'undefined', 'typeof=' + typeof CryptoUtil);
+    }, 2000);
+    
+    // Test 6: Check if account functions available
+    setTimeout(() => {
+      addTest('createAccount available', typeof createAccount !== 'undefined', 'typeof=' + typeof createAccount);
+      addTest('getCurrentUser available', typeof getCurrentUser !== 'undefined', 'typeof=' + typeof getCurrentUser);
+    }, 2000);
+    
+    // Battle Pass Modal Setup
+    document.addEventListener('DOMContentLoaded', () => {
+      const bpModal = document.getElementById('battlePassModal');
+      const bpToggleBtn = document.getElementById('bpToggleBtn');
+      const bpCloseBtn = document.getElementById('closeBpBtn');
+      
+      if (typeof getCurrentUser === 'function') {
+        const user = getCurrentUser();
+        if (user) {
+          if (bpToggleBtn) bpToggleBtn.removeAttribute('hidden');
+          if (typeof updateBattlePassWidget === 'function') {
+            updateBattlePassWidget(user);
+          }
+        }
+      }
+      
+      // Battle pass toggle button click
+      if (bpToggleBtn && bpModal) {
+        bpToggleBtn.addEventListener('click', () => {
+          bpModal.removeAttribute('hidden');
+        });
+      }
+      
+      // Battle pass close button click
+      if (bpCloseBtn && bpModal) {
+        bpCloseBtn.addEventListener('click', () => {
+          bpModal.setAttribute('hidden', '');
+        });
+      }
+      
+      // Close modal when clicking outside
+      if (bpModal) {
+        bpModal.addEventListener('click', (e) => {
+          if (e.target === bpModal) {
+            bpModal.setAttribute('hidden', '');
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
