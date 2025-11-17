@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Imposter — Gifts</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <button id="sidebarToggle" class="hamburger" aria-label="Toggle menu">☰</button>
+        <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#00b4ff"/><path d="M7 12h10M12 7v10" stroke="#001" stroke-width="1.2" stroke-linecap="round"/></svg><span>Imposter</span><small>Word Game</small></div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+        <a href="play.html"><span class="icon">▶️</span><span class="label">Play</span></a>
+        <a href="account.html"><span class="icon">👤</span><span class="label">Account</span></a>
+        <a href="leaderboards.html"><span class="icon">🏆</span><span class="label">Leaderboards</span></a>
+        <a href="shop.html"><span class="icon">🛒</span><span class="label">Shop</span></a>
+        <a href="gifts.html"><span class="icon">🎁</span><span class="label">Gifts</span></a>
+      </nav>
+      <div id="playerAccountInfo" class="account-preview"></div>
+    </aside>
+
+    <main class="content">
+      <h1>🎁 Gifts</h1>
+      <div style="display:flex; gap:12px; margin-bottom:12px;">
+        <button id="inboxTabBtn">Inbox</button>
+        <button id="historyTabBtn">History</button>
+      </div>
+
+      <section id="inboxSection">
+        <h2>Inbox</h2>
+        <div id="inboxList">Loading...</div>
+      </section>
+
+      <section id="historySection" hidden>
+        <h2>History</h2>
+        <div id="historyList">Loading...</div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../js/crypto-utils.js"></script>
+  <script src="../js/account.js"></script>
+  <script>
+    async function loadInbox() {
+      const list = document.getElementById('inboxList');
+      list.innerHTML = 'Loading...';
+      if (!GameAPI.isAuthenticated) { list.innerHTML = '<p>Please log in to view gifts</p>'; return; }
+      try {
+        const res = await fetch('/api/gifts/inbox', { headers: { 'Authorization': `Bearer ${GameAPI.token}` } });
+        const data = await res.json();
+        if (!res.ok) return list.innerHTML = '<p>Error loading inbox</p>';
+        if (!data || data.length === 0) return list.innerHTML = '<p>No pending gifts</p>';
+        list.innerHTML = '';
+        data.forEach(g => {
+          const el = document.createElement('div');
+          el.style.cssText = 'padding:10px; border-radius:8px; background:rgba(0,0,0,0.4); margin-bottom:8px; display:flex; justify-content:space-between; gap:12px; align-items:center;';
+          el.innerHTML = `<div><strong>${g.senderName}</strong> sent <strong>${g.itemName}</strong><div style="font-size:0.9em; color:#9fdcff;">${g.message||''}</div></div>`;
+          const actions = document.createElement('div');
+          const acceptBtn = document.createElement('button'); acceptBtn.textContent = 'Accept'; acceptBtn.addEventListener('click', async () => { await acceptGift(g.id); loadInbox(); });
+          const declineBtn = document.createElement('button'); declineBtn.textContent = 'Decline'; declineBtn.addEventListener('click', async () => { await declineGift(g.id); loadInbox(); });
+          actions.appendChild(acceptBtn); actions.appendChild(declineBtn);
+          el.appendChild(actions);
+          list.appendChild(el);
+        });
+      } catch (e) { list.innerHTML = '<p>Error loading inbox</p>'; }
+    }
+
+    async function loadHistory() {
+      const list = document.getElementById('historyList');
+      list.innerHTML = 'Loading...';
+      if (!GameAPI.isAuthenticated) { list.innerHTML = '<p>Please log in to view history</p>'; return; }
+      try {
+        const res = await fetch('/api/gifts/history', { headers: { 'Authorization': `Bearer ${GameAPI.token}` } });
+        const data = await res.json();
+        if (!res.ok) return list.innerHTML = '<p>Error loading history</p>';
+        if (!data || data.length === 0) return list.innerHTML = '<p>No gifts found</p>';
+        list.innerHTML = '';
+        data.forEach(g => {
+          const el = document.createElement('div');
+          el.style.cssText = 'padding:10px; border-radius:8px; background:rgba(0,0,0,0.4); margin-bottom:8px; display:flex; justify-content:space-between; gap:12px; align-items:center;';
+          el.innerHTML = `<div><strong>${g.senderName}</strong> → <strong>${g.recipientName}</strong>: <strong>${g.itemName}</strong><div style="font-size:0.9em; color:#9fdcff;">${g.message||''} — ${g.status}</div></div>`;
+          list.appendChild(el);
+        });
+      } catch (e) { list.innerHTML = '<p>Error loading history</p>'; }
+    }
+
+    async function acceptGift(id) {
+      try {
+        const res = await fetch('/api/gifts/' + id + '/accept', { method: 'POST', headers: { 'Authorization': `Bearer ${GameAPI.token}` } });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error || 'Failed to accept gift');
+        alert('Gift accepted!');
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function declineGift(id) {
+      // For now, decline simply marks gift as declined in DB by updating status (client-side placeholder)
+      try {
+        const res = await fetch('/api/gifts/decline', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GameAPI.token}` }, body: JSON.stringify({ id }) });
+        if (!res.ok) return alert('Failed to decline');
+        alert('Gift declined');
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('inboxTabBtn').addEventListener('click', () => { document.getElementById('inboxSection').hidden = false; document.getElementById('historySection').hidden = true; loadInbox(); });
+      document.getElementById('historyTabBtn').addEventListener('click', () => { document.getElementById('inboxSection').hidden = true; document.getElementById('historySection').hidden = false; loadHistory(); });
+      // default show inbox
+      loadInbox();
+      // Sidebar toggle
+      const btn = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.sidebar');
+      if (!sidebar) return;
+      try {
+        const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+        if (collapsed) sidebar.classList.add('collapsed');
+      } catch (e) {}
+      if (btn) btn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        try { localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+      });
+    });
+  </script>
+</body>
+</html>

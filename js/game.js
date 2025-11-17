@@ -19,6 +19,17 @@ if (typeof window.addDebug === 'undefined') {
 }
 window.addDebug('game.js loaded - state initialized');
 
+// Client-side lightweight rate limiter to slow down automated inputs
+const _clientBuckets = {};
+function allowAction(key, maxPerWindow = 5, windowMs = 1000) {
+  const now = Date.now();
+  if (!_clientBuckets[key]) _clientBuckets[key] = { reset: now + windowMs, count: 0 };
+  const b = _clientBuckets[key];
+  if (now > b.reset) { b.count = 0; b.reset = now + windowMs; }
+  b.count++;
+  return b.count <= maxPerWindow;
+}
+
 // WORDS data moved to `words.js` (shared file)
 
 const els = {
@@ -156,10 +167,13 @@ function newGame(skipSetup = false) {
   if (skipSetup && state.players && state.players.length) {
     n = state.players.length;
   } else {
-    n = parseInt(els.playerCount.value, 10);
+    n = parseInt(els.playerCount.value, 10) || 6;
+    // Clamp values to reasonable bounds
+    n = Math.max(3, Math.min(10, n));
   }
 
-  const imposterNum = Math.min(parseInt(els.imposterCount.value, 10), Math.max(1, n - 1));
+  let imposterNum = parseInt(els.imposterCount.value, 10) || 1;
+  imposterNum = Math.min(imposterNum, Math.max(1, n - 1));
 
   // Initialize scores on first full game (only when not skipping setup)
   if (!skipSetup && state.playerScores.length === 0) {
@@ -435,6 +449,12 @@ function showVoteScreen() {
 }
 
 function castVote(targetIdx) {
+  // client-side throttle to avoid rapid automated voting
+  if (!allowAction('vote', 3, 1000)) {
+    window.addDebug && window.addDebug('castVote throttled');
+    return;
+  }
+
   state.votes.push({
     voter: state.players[state.voteIdx].name,
     target: state.players[targetIdx].name,

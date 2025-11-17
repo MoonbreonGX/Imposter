@@ -1,3 +1,8 @@
+:root {
+  --sidebar-width: 220px;
+  --content-offset: calc(var(--sidebar-width) + 20px);
+}
+
 body {
   font-family: 'Segoe UI', Roboto, sans-serif;
   margin: 0;
@@ -18,7 +23,7 @@ body { display: block; }
   min-height: 100vh;
 }
 .sidebar {
-  width: 220px;
+  width: var(--sidebar-width);
   background: linear-gradient(180deg, #041228 0%, #061226 100%);
   border-right: 1px solid rgba(74,201,255,0.06);
   padding: 20px 14px;
@@ -29,7 +34,6 @@ body { display: block; }
   top: 0;
   bottom: 0;
   z-index: 1000;
-}
 .sidebar .logo {
   font-size: 1.6em;
   font-weight: 900;
@@ -52,8 +56,10 @@ body { display: block; }
 .sidebar .account-preview .xp-bar { height:100%; background:linear-gradient(90deg,#00c853,#00ff88); width:0%; }
 .sidebar.collapsed .account-preview { position:fixed; bottom:20px; left:10px; right:10px; width:auto; z-index:999; background:rgba(6,12,30,0.95); border:1px solid rgba(0,180,255,0.2); }
 
-/* shift page content to the right so sidebar doesn't overlap */
-.content { margin-left: 240px; min-height: 100vh; padding: 32px; box-sizing: border-box; }
+/* shift page content to the right so sidebar doesn't overlap.
+  Use sibling selector so toggling `.sidebar.collapsed` updates content spacing. */
+.app-shell .sidebar + .content { margin-left: var(--content-offset); min-height: 100vh; padding: 32px; box-sizing: border-box; }
+.app-shell .sidebar.collapsed + .content { margin-left: 92px; }
 
 /* collapsed sidebar (icons only) */
 .sidebar.collapsed { width: 72px; }

@@ -230,6 +230,14 @@
               buyBtn.disabled = playerGems < item.price;
               buyBtn.addEventListener('click', () => buyCosmetic(item.id, item.price, () => loadShop()));
               buttonContainer.appendChild(buyBtn);
+
+              // Gift button (pay with gems)
+              const giftBtn = document.createElement('button');
+              giftBtn.style.cssText = `flex:1; padding:6px; border:none; border-radius:4px; background:#0069c0; color:#fff; cursor:pointer; font-size:0.8em; font-weight:bold;`;
+              giftBtn.textContent = 'Gift';
+              giftBtn.disabled = playerGems < item.price;
+              giftBtn.addEventListener('click', () => giftCosmetic(item.id, item.price));
+              buttonContainer.appendChild(giftBtn);
             }
 
             card.appendChild(buttonContainer);
@@ -256,6 +264,27 @@
         callback();
       } catch (e) {
         alert('Purchase error: ' + e.message);
+      }
+    }
+
+    async function giftCosmetic(itemId, price) {
+      if (!GameAPI.isAuthenticated) return alert('Please log in to gift');
+      const recipient = prompt('Enter recipient username');
+      if (!recipient) return;
+      const message = prompt('Optional message to include with gift (leave blank for none)') || '';
+
+      try {
+        const res = await fetch(`/api/shop/gift/${itemId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GameAPI.token}` },
+          body: JSON.stringify({ recipientUsername: recipient, method: 'gems', autoAccept: true, message })
+        });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error || 'Gift failed');
+        alert(data.delivered ? 'Gift sent and delivered!' : 'Gift queued (pending)');
+        loadShop();
+      } catch (e) {
+        alert('Gift error: ' + e.message);
       }
     }
 

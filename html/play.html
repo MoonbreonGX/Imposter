@@ -10,24 +10,7 @@
 </head>
 <body>
   <div class="app-shell">
-        <!-- Debug Panel -->
-        <div id="debugPanel" style="position:fixed; top:0; right:0; width:300px; max-height:200px; background:rgba(0,0,0,0.9); color:#0f0; font-family:monospace; font-size:0.8em; padding:10px; overflow-y:auto; z-index:10000; border-left:2px solid #0f0;">
-          <div style="margin-bottom:10px; border-bottom:1px solid #0f0; padding-bottom:5px;">DEBUG PANEL</div>
-          <div id="debugContent"></div>
-        </div>
-        <script>
-          window.debugLogs = [];
-          window.addDebug = function(msg) {
-            window.debugLogs.push(msg);
-            const panel = document.getElementById('debugContent');
-            if (panel) {
-              panel.innerHTML = window.debugLogs.slice(-10).map(m => '<div>' + m + '</div>').join('');
-            }
-          };
-          window.addEventListener('error', (e) => {
-            window.addDebug('ERROR: ' + e.message);
-          });
-        </script>
+        <!-- Debug panel removed for production; logs go to console -->
     
     <aside class="sidebar" aria-label="Main navigation">
       <div class="sidebar-top">

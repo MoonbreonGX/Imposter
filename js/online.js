@@ -202,17 +202,28 @@ const OnlineGame = {
 
   // Send chat message
   sendChatMessage(text) {
+    // basic client-side rate limiting
+    if (!this._chatBucket) this._chatBucket = { count: 0, reset: Date.now() + 5000 };
+    if (Date.now() > this._chatBucket.reset) { this._chatBucket.count = 0; this._chatBucket.reset = Date.now() + 5000; }
+    this._chatBucket.count++;
+    if (this._chatBucket.count > 10) return false; // >10 messages per 5s blocked
+
     const room = this.getRoomState();
     if (!room) return false;
 
+    // sanitize and length-check
+    let textStr = String(text || '').trim();
+    if (!textStr) return false;
+    if (textStr.length > 500) textStr = textStr.substring(0, 500);
+
     // Basic word filter before sending
-    const filtered = filterBadWords(text);
+    const filtered = filterBadWords(textStr);
 
     room.chatMessages.push({
       id: this.peerId + '_' + Date.now(),
       username: this.username,
       message: filtered,
-      original: text,
+      original: textStr,
       timestamp: Date.now()
     });
 

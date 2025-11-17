@@ -14,6 +14,29 @@ const JWT_SECRET = process.env.JWT_SECRET || (Math.random().toString(36).slice(2
 app.use(cors());
 app.use(express.json());
 
+// Basic in-memory rate limiter (per playerId)
+const rateBuckets = new Map();
+function rateLimit({ windowMs = 60000, max = 60 } = {}) {
+  return (req, res, next) => {
+    const key = req.playerId || req.ip || 'anon';
+    const now = Date.now();
+    let bucket = rateBuckets.get(key);
+    if (!bucket) {
+      bucket = { reset: now + windowMs, count: 0 };
+      rateBuckets.set(key, bucket);
+    }
+    if (now > bucket.reset) {
+      bucket.count = 0;
+      bucket.reset = now + windowMs;
+    }
+    bucket.count++;
+    if (bucket.count > max) {
+      return res.status(429).json({ error: 'Rate limit exceeded' });
+    }
+    next();
+  };
+}
+
 // Database setup: PostgreSQL by default (via DATABASE_URL), SQLite as fallback
 let db = null;
 const usePostgres = !!(process.env.DATABASE_URL || process.env.USE_PG === '1' || process.env.USE_PG === 'true');
@@ -254,6 +277,28 @@ const initializeDatabase = () => {
       FOREIGN KEY (playerId) REFERENCES players(id),
       FOREIGN KEY (itemId) REFERENCES cosmetic_items(id)
     )`);
+
+    // Gifts / transactions table
+    db.run(`CREATE TABLE IF NOT EXISTS gift_transactions (
+      id TEXT PRIMARY KEY,
+      senderId TEXT NOT NULL,
+      recipientId TEXT NOT NULL,
+      itemId TEXT NOT NULL,
+      message TEXT,
+      method TEXT DEFAULT 'gems',
+      amount INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'pending',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      acceptedAt DATETIME,
+      FOREIGN KEY (senderId) REFERENCES players(id),
+      FOREIGN KEY (recipientId) REFERENCES players(id),
+      FOREIGN KEY (itemId) REFERENCES cosmetic_items(id)
+    )`);
+
+    // Add isGiftable column to cosmetic_items if missing (0/1)
+    try {
+      db.run("ALTER TABLE cosmetic_items ADD COLUMN isGiftable INTEGER DEFAULT 1");
+    } catch (e) {}
   });
 };
 
@@ -670,6 +715,165 @@ app.post('/api/shop/equip/:itemId', verifyToken, (req, res) => {
         res.json({ success: true });
       });
     });
+  });
+});
+
+// Gift an item to another player
+app.post('/api/shop/gift/:itemId', verifyToken, rateLimit({ windowMs: 60000, max: 20 }), (req, res) => {
+  const { itemId } = req.params;
+  const { recipientUsername, method = 'gems', autoAccept = true, message = '' } = req.body;
+  const senderId = req.playerId;
+
+  if (!recipientUsername) return res.status(400).json({ error: 'recipientUsername required' });
+
+  // Find recipient
+  db.get('SELECT id, username FROM players WHERE username = ?', [recipientUsername], (err, recipient) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    if (!recipient) return res.status(404).json({ error: 'Recipient not found' });
+
+    // Verify item and giftability
+    db.get('SELECT id, price, isGiftable FROM cosmetic_items WHERE id = ?', [itemId], (err, item) => {
+      if (err) return res.status(500).json({ error: 'Server error' });
+      if (!item) return res.status(404).json({ error: 'Item not found' });
+      if (item.isGiftable === 0) return res.status(400).json({ error: 'Item not giftable' });
+
+      const giftId = uuidv4();
+
+      if (method === 'gems') {
+        // sender pays price in gems
+        db.get('SELECT gems FROM player_gems WHERE playerId = ?', [senderId], (err, row) => {
+          if (err) return res.status(500).json({ error: 'Server error' });
+          const gems = row?.gems || 0;
+          if (gems < item.price) return res.status(400).json({ error: 'Not enough gems' });
+
+          const newGems = gems - item.price;
+          db.run('UPDATE player_gems SET gems = ? WHERE playerId = ?', [newGems, senderId], (err) => {
+            if (err) return res.status(500).json({ error: 'Server error' });
+
+            // If autoAccept, immediately grant to recipient; otherwise create pending transaction
+            if (autoAccept) {
+              const invId = uuidv4();
+              db.run('INSERT INTO player_inventory (id, playerId, itemId, owned) VALUES (?, ?, ?, ?)', [invId, recipient.id, itemId, 1], (err) => {
+                if (err) return res.status(500).json({ error: 'Server error' });
+                db.run('INSERT INTO gift_transactions (id, senderId, recipientId, itemId, message, method, amount, status, createdAt, acceptedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', [giftId, senderId, recipient.id, itemId, message, 'gems', item.price, 'delivered'], (err) => {
+                  if (err) return res.status(500).json({ error: 'Server error' });
+                  return res.json({ success: true, delivered: true, gemsRemaining: newGems });
+                });
+              });
+            } else {
+              db.run('INSERT INTO gift_transactions (id, senderId, recipientId, itemId, message, method, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [giftId, senderId, recipient.id, itemId, message, 'gems', item.price, 'pending'], (err) => {
+                if (err) return res.status(500).json({ error: 'Server error' });
+                return res.json({ success: true, pending: true });
+              });
+            }
+          });
+        });
+      } else if (method === 'item') {
+        // sender must own item
+        db.get('SELECT * FROM player_inventory WHERE playerId = ? AND itemId = ? AND owned = 1', [senderId, itemId], (err, inv) => {
+          if (err) return res.status(500).json({ error: 'Server error' });
+          if (!inv) return res.status(400).json({ error: 'Sender does not own this item' });
+
+          if (autoAccept) {
+            // Transfer ownership: mark sender inventory owned=0, insert recipient inventory
+            db.run('UPDATE player_inventory SET owned = 0 WHERE id = ?', [inv.id], (err) => {
+              if (err) return res.status(500).json({ error: 'Server error' });
+              const invId = uuidv4();
+              db.run('INSERT INTO player_inventory (id, playerId, itemId, owned) VALUES (?, ?, ?, 1)', [invId, recipient.id, itemId], (err) => {
+                if (err) return res.status(500).json({ error: 'Server error' });
+                db.run('INSERT INTO gift_transactions (id, senderId, recipientId, itemId, message, method, amount, status, createdAt, acceptedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', [giftId, senderId, recipient.id, itemId, message, 'item', 0, 'delivered'], (err) => {
+                  if (err) return res.status(500).json({ error: 'Server error' });
+                  return res.json({ success: true, delivered: true });
+                });
+              });
+            });
+          } else {
+            // Create pending transaction (sender keeps ownership until accepted)
+            db.run('INSERT INTO gift_transactions (id, senderId, recipientId, itemId, message, method, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [giftId, senderId, recipient.id, itemId, message, 'item', 0, 'pending'], (err) => {
+              if (err) return res.status(500).json({ error: 'Server error' });
+              return res.json({ success: true, pending: true });
+            });
+          }
+        });
+      } else {
+        return res.status(400).json({ error: 'Unknown gifting method' });
+      }
+    });
+  });
+});
+
+// Get pending gifts for recipient (inbox)
+app.get('/api/gifts/inbox', verifyToken, rateLimit({ windowMs: 60000, max: 30 }), (req, res) => {
+  db.all('SELECT gt.*, p.username as senderName, ci.name as itemName FROM gift_transactions gt JOIN players p ON gt.senderId = p.id JOIN cosmetic_items ci ON gt.itemId = ci.id WHERE gt.recipientId = ? AND gt.status = ? ORDER BY gt.createdAt DESC', [req.playerId, 'pending'], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    res.json(rows || []);
+  });
+});
+
+// Accept a pending gift
+app.post('/api/gifts/:giftId/accept', verifyToken, rateLimit({ windowMs: 60000, max: 20 }), (req, res) => {
+  const giftId = req.params.giftId;
+  db.get('SELECT * FROM gift_transactions WHERE id = ?', [giftId], (err, gt) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    if (!gt) return res.status(404).json({ error: 'Gift not found' });
+    if (gt.recipientId !== req.playerId) return res.status(403).json({ error: 'Unauthorized' });
+    if (gt.status !== 'pending') return res.status(400).json({ error: 'Gift already processed' });
+
+    // If method is gems, just mark delivered and add inventory
+    if (gt.method === 'gems') {
+      const invId = uuidv4();
+      db.run('INSERT INTO player_inventory (id, playerId, itemId, owned) VALUES (?, ?, ?, 1)', [invId, req.playerId, gt.itemId], (err) => {
+        if (err) return res.status(500).json({ error: 'Server error' });
+        db.run('UPDATE gift_transactions SET status = ?, acceptedAt = CURRENT_TIMESTAMP WHERE id = ?', ['delivered', giftId], (err) => {
+          if (err) return res.status(500).json({ error: 'Server error' });
+          res.json({ success: true });
+        });
+      });
+    } else if (gt.method === 'item') {
+      // Transfer ownership from sender to recipient (sender must still own it)
+      db.get('SELECT * FROM player_inventory WHERE playerId = ? AND itemId = ? AND owned = 1', [gt.senderId, gt.itemId], (err, inv) => {
+        if (err) return res.status(500).json({ error: 'Server error' });
+        if (!inv) return res.status(400).json({ error: 'Sender no longer owns item' });
+
+        db.run('UPDATE player_inventory SET owned = 0 WHERE id = ?', [inv.id], (err) => {
+          if (err) return res.status(500).json({ error: 'Server error' });
+          const invId = uuidv4();
+          db.run('INSERT INTO player_inventory (id, playerId, itemId, owned) VALUES (?, ?, ?, 1)', [invId, req.playerId, gt.itemId], (err) => {
+            if (err) return res.status(500).json({ error: 'Server error' });
+            db.run('UPDATE gift_transactions SET status = ?, acceptedAt = CURRENT_TIMESTAMP WHERE id = ?', ['delivered', giftId], (err) => {
+              if (err) return res.status(500).json({ error: 'Server error' });
+              res.json({ success: true });
+            });
+          });
+        });
+      });
+    } else {
+      res.status(400).json({ error: 'Unknown gift method' });
+    }
+  });
+});
+
+// Decline a pending gift
+app.post('/api/gifts/decline', verifyToken, rateLimit({ windowMs: 60000, max: 20 }), (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  db.get('SELECT * FROM gift_transactions WHERE id = ?', [id], (err, gt) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    if (!gt) return res.status(404).json({ error: 'Gift not found' });
+    if (gt.recipientId !== req.playerId) return res.status(403).json({ error: 'Unauthorized' });
+    if (gt.status !== 'pending') return res.status(400).json({ error: 'Gift already processed' });
+    db.run('UPDATE gift_transactions SET status = ?, acceptedAt = CURRENT_TIMESTAMP WHERE id = ?', ['declined', id], (err) => {
+      if (err) return res.status(500).json({ error: 'Server error' });
+      return res.json({ success: true });
+    });
+  });
+});
+
+// Gift history (sent/received)
+app.get('/api/gifts/history', verifyToken, rateLimit({ windowMs: 60000, max: 30 }), (req, res) => {
+  db.all('SELECT gt.*, s.username as senderName, r.username as recipientName, ci.name as itemName FROM gift_transactions gt JOIN players s ON gt.senderId = s.id JOIN players r ON gt.recipientId = r.id JOIN cosmetic_items ci ON gt.itemId = ci.id WHERE gt.senderId = ? OR gt.recipientId = ? ORDER BY gt.createdAt DESC LIMIT 200', [req.playerId, req.playerId], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Server error' });
+    res.json(rows || []);
   });
 });
 
