@@ -49,6 +49,23 @@ npm start
 
 The server will run on `http://localhost:3000`
 
+## Deployment to Render
+
+For detailed deployment instructions, see [`../RENDER_DEPLOYMENT.md`](../RENDER_DEPLOYMENT.md) in the root directory.
+
+**Quick steps:**
+
+1. Push your code to GitHub (branch: `main`)
+2. Create a new Web Service on Render and connect to `MoonbreonGX/Imposter`
+3. Set Build Command: `cd server && npm install`
+4. Set Start Command: `cd server && npm start`
+5. Add these environment variables:
+   - `NODE_ENV` = `production`
+   - `JWT_SECRET` = (strong random string)
+   - `DATABASE_URL` = (PostgreSQL URL, optional)
+   - `USE_PG` = `true` (if using PostgreSQL)
+6. Deploy and monitor logs
+
 ## API Endpoints
 
 ### Authentication

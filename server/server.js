@@ -9,6 +9,12 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Log startup info
+console.log(`[${new Date().toISOString()}] Starting Imposter Game Server`);
+console.log(`Environment: ${NODE_ENV}`);
+console.log(`Port: ${port}`);
 
 // Middleware
 app.use(cors());
@@ -1367,6 +1373,11 @@ function generateRoomCode() {
   return code;
 }
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
+});
+
 // Support HTTPS if SSL cert/key paths are provided in env
 if (process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH) {
   try {
@@ -1374,14 +1385,16 @@ if (process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH) {
     const key = fs.readFileSync(process.env.SSL_KEY_PATH);
     const cert = fs.readFileSync(process.env.SSL_CERT_PATH);
     https.createServer({ key, cert }, app).listen(port, () => {
-      console.log(`Imposter Game Server running with HTTPS on https://localhost:${port}`);
+      console.log(`[${new Date().toISOString()}] Imposter Game Server running with HTTPS on https://localhost:${port}`);
     });
   } catch (e) {
     console.error('Failed to start HTTPS server, falling back to HTTP:', e);
-    app.listen(port, () => console.log(`Imposter Game Server running on http://localhost:${port}`));
+    app.listen(port, () => console.log(`[${new Date().toISOString()}] Imposter Game Server running on http://localhost:${port}`));
   }
 } else {
   app.listen(port, () => {
-    console.log(`Imposter Game Server running on http://localhost:${port}`);
+    console.log(`[${new Date().toISOString()}] Imposter Game Server running on http://localhost:${port}`);
+    console.log(`Database: ${usePostgres ? 'PostgreSQL' : 'SQLite'}`);
+    console.log(`Ready for connections!`);
   });
 }
